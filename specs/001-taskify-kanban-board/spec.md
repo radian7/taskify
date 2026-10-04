@@ -22,6 +22,20 @@
   reassign, or unassign any task to any predefined user.
 - Q: Should a task in the Done column still be editable and open for comments? → A: Yes; Done
   tasks behave like tasks in any other column.
+- Q: Should phase 1 include live board updates and in-app notifications? → A: Yes, both. Other
+  users' changes appear within 2 seconds without a refresh, and users get in-app notifications
+  when someone else assigns them a task, moves a task assigned to them, or comments on a task
+  assigned to them. Notifications are kept for 30 days.
+- Q: What happens when two users edit the same task's title, description, or assignee at nearly
+  the same time? → A: The last save wins (same rule as moves); the other user's screen updates
+  live to show the final values.
+- Q: How many changes may one person make per minute before Taskify asks them to slow down?
+  → A: 60 changes per minute per user; reads are limited separately at 300 per minute per user.
+- Q: What counts as one character in length limits? → A: Each user-perceived (visible) character
+  counts as 1; an emoji, a combined accented letter, or a flag is one character.
+- Q: Should choosing or switching the acting user be recorded in the audit log? → A: Yes; log
+  every selection and switch with the user chosen, the previous user (if any), the time, and the
+  source IP address.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -139,11 +153,70 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
 
 ---
 
+### User Story 5 - See other users' changes live (Priority: P3)
+
+While a team member has a board, a task, or the project list open, changes made by other users
+(new projects, new or edited tasks, moves, assignments, comments) appear on their screen without
+a refresh.
+
+**Why this priority**: The team can work on the same board at the same time without reloading,
+but every change is still visible after a refresh without this story.
+
+**Independent Test**: Open the same board in two browsers as different users, move, create, edit,
+and comment on a task in one, and confirm the other shows each change within 2 seconds without a
+refresh.
+
+**Acceptance Scenarios**:
+
+1. **Given** two users are viewing the same board, **When** one moves, creates, edits, or
+   reassigns a task, **Then** the other user's board shows the change within 2 seconds without a
+   refresh.
+2. **Given** a user has a task's details open, **When** another user comments on, edits, or moves
+   that task, **Then** the details (comments, fields, status history) update within 2 seconds.
+3. **Given** a user is on the project list, **When** another user creates a project, **Then** it
+   appears in the list within 2 seconds.
+4. **Given** live updates are temporarily unavailable, **When** a user makes a change, **Then** the
+   change is still saved, and other users see it once live updates resume or when they refresh.
+
+---
+
+### User Story 6 - Receive in-app notifications (Priority: P3)
+
+A team member is told inside Taskify when another user assigns them a task, moves a task that is
+assigned to them, or comments on a task that is assigned to them. They see how many notifications
+are unread, can open the list, follow a notification to its task, and mark notifications read.
+
+**Why this priority**: Notifications help people notice work that concerns them, but the board
+and task details already show the same information.
+
+**Independent Test**: As one user, assign a task to a second user, move it, and comment on it;
+switch to the second user and confirm three unread notifications that each link to the task; mark
+all read and confirm the unread count is zero. Then act on a task assigned to yourself and confirm
+no notification is created.
+
+**Acceptance Scenarios**:
+
+1. **Given** user A assigns a task to user B, **When** B views Taskify, **Then** B has an unread
+   notification naming A, the task, and the action.
+2. **Given** a task is assigned to user B, **When** another user moves it or comments on it,
+   **Then** B receives a notification for each such action.
+3. **Given** a user acts on a task assigned to themselves, **When** the change is saved, **Then**
+   no notification is created for them.
+4. **Given** a user has unread notifications, **When** they are viewing any page, **Then** the
+   unread count is shown and updates within 2 seconds when a new notification arrives.
+5. **Given** a user opens a notification, **When** they select it, **Then** they are taken to the
+   task and the notification is marked read; they can also mark all notifications read at once.
+6. **Given** a user tries to read or mark a notification that belongs to another user, **When**
+   the request is made, **Then** it is rejected as if the notification does not exist.
+
+---
+
 ### Edge Cases
 
 - A project with no tasks shows all four columns empty, with a prompt to add the first task.
-- Two users move the same task at nearly the same time: the last saved move wins, and both users
-  see the final column when they next view the board.
+- Two users move the same task, or edit its title, description, or assignee, at nearly the same
+  time: the last save wins, and both users' screens update to the final values within 2 seconds
+  (FR-025).
 - A user tries to open a project or task that no longer exists (for example, a stale link): they
   see a "not found" message and can return to the project list.
 - Input containing markup or script content (for example, `<script>` in a task title) is shown as
@@ -155,6 +228,11 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
 - A task in Done can still be edited, reassigned, and commented on exactly like a task in any
   other column; no column is locked.
 - Two projects with the same name are allowed; they are distinguished in the list by creation date.
+- If live updates are interrupted (for example, a network blip), the screen catches up with all
+  saved changes once the connection returns; no change is lost.
+- A user is never notified about their own actions, and the same change never creates two
+  notifications for the same person.
+- Notifications older than 30 days are removed automatically.
 
 ## Requirements *(mandatory)*
 
@@ -187,7 +265,8 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
   start in To Do.
 - **FR-010**: A task MUST be assigned to at most one predefined user or be unassigned.
 - **FR-011**: Any user MUST be able to edit any task's title and description, and MUST be able to
-  assign it to any predefined user, reassign it, or unassign it.
+  assign it to any predefined user, reassign it, or unassign it. When edits or moves to the same
+  task are saved at nearly the same time, the last save wins.
 - **FR-012**: Any user MUST be able to move any task from any column to any other column,
   regardless of who created or is assigned to the task.
 - **FR-013**: System MUST visually distinguish tasks assigned to the selected user from all other
@@ -210,19 +289,46 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
   placeholder in its place in the thread reading "Comment deleted by [author]" with the deletion
   time. Deleted comments MUST NOT be editable or restorable.
 
+**Live updates and notifications**
+
+- **FR-025**: System MUST show changes made by other users (projects created; tasks created,
+  edited, assigned, or moved; comments added, edited, or deleted) on any open project list, board,
+  or task details screen within 2 seconds, without a refresh.
+- **FR-026**: If live updates are interrupted, System MUST still save every change and MUST bring
+  open screens up to date once live updates resume; a refresh MUST always show the saved state.
+- **FR-027**: System MUST create an in-app notification for a user when another user (a) assigns
+  a task to them, including at task creation, (b) moves a task currently assigned to them, or
+  (c) comments on a task currently assigned to them. No other action creates a notification, and
+  a user's own actions never notify them.
+- **FR-028**: Each notification MUST show who acted, on which task, and what they did, and MUST
+  link to the task. Users MUST see their unread count, list their notifications newest first,
+  and mark one or all as read.
+- **FR-029**: A user MUST only be able to see and change their own notifications.
+- **FR-030**: System MUST delete notifications 30 days after they are created.
+
 **Data, validation, and security**
 
 - **FR-018**: All projects, tasks, assignments, column positions, and comments MUST be saved and
   remain available after Taskify is closed and reopened.
 - **FR-019**: System MUST validate every input against the limits and allowed values in this
   specification on the receiving side, reject invalid input as a whole with a clear message that
-  does not reveal internal details, and leave existing data unchanged.
+  does not reveal internal details, and leave existing data unchanged. All length limits in this
+  specification count user-perceived characters: each visible character, including an emoji, a
+  combined accented letter, or a flag, counts as one, and the same count is shown to the user
+  while typing.
 - **FR-020**: System MUST display all user-entered text as plain text so that embedded markup or
   scripts are never executed.
 - **FR-021**: System MUST reject any reference to a user, project, task, comment, or column that
   does not exist.
 - **FR-022**: System MUST log rejected requests and changes made to data (who, what, when) for
   audit, without recording comment or description content in the log.
+- **FR-031**: System MUST limit each user to 60 changes per minute (creating, editing, moving,
+  assigning, commenting, marking notifications read) and 300 reads per minute. A request over
+  the limit MUST be rejected with a "Too many requests, please wait a moment" message, MUST NOT
+  change any data, and MUST be logged for audit.
+- **FR-032**: System MUST record in the audit log every time a person selects or switches the
+  user they act as, with the user chosen, the previous user (if any), the time, and the source IP
+  address. This is the phase 1 stand-in for login auditing.
 
 ### Key Entities
 
@@ -237,6 +343,9 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
   from column, to column, time. Read-only once recorded.
 - **Comment**: A message on a task. Attributes: text, author (a User), posted time, edited time
   (if edited), deleted time (if deleted; text is cleared on deletion).
+- **Notification**: A message to one user about another user's action on a task. Attributes:
+  recipient (a User), type (assigned, moved, or commented), task, project, acting user, summary,
+  created time, read time (if read). Removed 30 days after creation.
 
 ## Success Criteria *(mandatory)*
 
@@ -254,6 +363,14 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
 - **SC-006**: 0 instances of user-entered markup or script being executed in a test set of common
   injection inputs.
 - **SC-007**: Boards with up to 200 tasks open and become usable within 2 seconds.
+- **SC-008**: In a test with two users viewing the same board, 100% of changes made by one user
+  appear on the other's screen within 2 seconds without a refresh.
+- **SC-009**: In a test set covering each notification rule, 100% of qualifying actions create
+  exactly one notification for the right user, and 0 notifications are created for a user's own
+  actions.
+- **SC-010**: In a test, the 61st change and the 301st read by one user within a minute are
+  rejected with no data changed, while normal use (at least 1 change per second, sustained for a
+  minute) is never rejected.
 
 ## Assumptions
 
@@ -269,7 +386,6 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
 - Deleting projects and tasks is out of scope for phase 1; tasks that are no longer needed are
   moved to Done.
 - Ordering tasks within a column is out of scope; tasks in a column are shown newest first.
-- Taskify is used in a desktop web browser; mobile layouts, notifications, attachments, due dates,
-  labels, and search are out of scope for phase 1.
-- Changes made by one user are seen by others when they next open or refresh a board; live
-  updates are not required.
+- Taskify is used in a desktop web browser; mobile layouts, email or push notifications (only
+  in-app notifications are in scope), attachments, due dates, labels, and search are out of scope
+  for phase 1.
