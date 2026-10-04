@@ -19,6 +19,7 @@ info:
   tags:
     - name: domain-event
     - name: hub-message
+    - name: hub-command
 
 defaultContentType: application/json
 
@@ -62,13 +63,18 @@ channels:
     description: |
       SignalR hub. Only the Web server connects, authenticated with the Web API key. Messages
       are change signals: the Web server re-fetches data from the REST APIs and never renders
-      message content directly. Group membership is managed with the client methods
-      JoinProject/LeaveProject (projectId), JoinTask/LeaveTask (taskId) and
-      JoinUser/LeaveUser (userId, must be a predefined user); invalid arguments raise a
-      HubException with a generic message.
+      message content directly. Group membership is managed by the hub method invocations
+      below (operation sendBoardHubCommands); each argument is validated, and an invalid one
+      raises a HubException with the generic message "Invalid request" (Principle II).
     servers:
       - $ref: '#/servers/notifications'
     messages:
+      joinProject: { $ref: '#/components/messages/JoinProject' }
+      leaveProject: { $ref: '#/components/messages/LeaveProject' }
+      joinTask: { $ref: '#/components/messages/JoinTask' }
+      leaveTask: { $ref: '#/components/messages/LeaveTask' }
+      joinUser: { $ref: '#/components/messages/JoinUser' }
+      leaveUser: { $ref: '#/components/messages/LeaveUser' }
       boardChanged: { $ref: '#/components/messages/BoardChanged' }
       taskChanged: { $ref: '#/components/messages/TaskChanged' }
       projectListChanged: { $ref: '#/components/messages/ProjectListChanged' }
@@ -93,6 +99,21 @@ operations:
       - $ref: '#/channels/internalEvents/messages/commentAdded'
       - $ref: '#/channels/internalEvents/messages/commentEdited'
       - $ref: '#/channels/internalEvents/messages/commentDeleted'
+  sendBoardHubCommands:
+    action: send
+    title: Web server invokes hub methods to manage group membership
+    description: |
+      Each message is one SignalR method invocation with a single argument. The connection is
+      automatically in group `projects`; Join*/Leave* add or remove it from `project:{id}`,
+      `task:{id}` or `user:{id}`.
+    channel: { $ref: '#/channels/boardHub' }
+    messages:
+      - $ref: '#/channels/boardHub/messages/joinProject'
+      - $ref: '#/channels/boardHub/messages/leaveProject'
+      - $ref: '#/channels/boardHub/messages/joinTask'
+      - $ref: '#/channels/boardHub/messages/leaveTask'
+      - $ref: '#/channels/boardHub/messages/joinUser'
+      - $ref: '#/channels/boardHub/messages/leaveUser'
   receiveBoardSignals:
     action: receive
     title: Web server receives hub signals
@@ -274,6 +295,30 @@ components:
                 commentId: { $ref: '#/components/schemas/Uuid' }
       unevaluatedProperties: false
 
+    HubEntityArgument:
+      type: object
+      additionalProperties: false
+      required: [id]
+      description: Argument of JoinProject/LeaveProject (projectId) and JoinTask/LeaveTask (taskId).
+      properties:
+        id:
+          type: string
+          format: uuid
+          not: { const: '00000000-0000-0000-0000-000000000000' }
+          description: Project or task ID; the empty GUID is rejected.
+
+    HubUserArgument:
+      type: object
+      additionalProperties: false
+      required: [id]
+      description: Argument of JoinUser/LeaveUser.
+      properties:
+        id:
+          type: string
+          format: uuid
+          not: { const: '00000000-0000-0000-0000-000000000000' }
+          description: Must be one of the five predefined users; any other ID is rejected.
+
     BoardChangedPayload:
       type: object
       additionalProperties: false
@@ -361,6 +406,37 @@ components:
       tags: [{ name: domain-event }]
       summary: Comment deleted by its author; text already erased. No notification.
       payload: { $ref: '#/components/schemas/CommentDeletedEnvelope' }
+
+    JoinProject:
+      name: JoinProject
+      tags: [{ name: hub-command }]
+      summary: Add the connection to group project:{id}.
+      payload: { $ref: '#/components/schemas/HubEntityArgument' }
+    LeaveProject:
+      name: LeaveProject
+      tags: [{ name: hub-command }]
+      summary: Remove the connection from group project:{id}.
+      payload: { $ref: '#/components/schemas/HubEntityArgument' }
+    JoinTask:
+      name: JoinTask
+      tags: [{ name: hub-command }]
+      summary: Add the connection to group task:{id} (open task details).
+      payload: { $ref: '#/components/schemas/HubEntityArgument' }
+    LeaveTask:
+      name: LeaveTask
+      tags: [{ name: hub-command }]
+      summary: Remove the connection from group task:{id}.
+      payload: { $ref: '#/components/schemas/HubEntityArgument' }
+    JoinUser:
+      name: JoinUser
+      tags: [{ name: hub-command }]
+      summary: Add the connection to group user:{id}; id must be a predefined user.
+      payload: { $ref: '#/components/schemas/HubUserArgument' }
+    LeaveUser:
+      name: LeaveUser
+      tags: [{ name: hub-command }]
+      summary: Remove the connection from group user:{id}.
+      payload: { $ref: '#/components/schemas/HubUserArgument' }
 
     BoardChanged:
       name: BoardChanged

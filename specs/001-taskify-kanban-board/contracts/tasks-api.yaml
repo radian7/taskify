@@ -40,6 +40,7 @@ paths:
                 items: { $ref: '#/components/schemas/TaskSummary' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
     post:
       operationId: createTask
@@ -61,6 +62,7 @@ paths:
               schema: { $ref: '#/components/schemas/TaskDetail' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '422': { $ref: '#/components/responses/UnknownReference' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/tasks/{taskId}:
@@ -76,6 +78,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TaskDetail' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
@@ -94,6 +97,7 @@ paths:
               schema: { $ref: '#/components/schemas/TaskDetail' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/UnknownReference' }
@@ -120,6 +124,7 @@ paths:
               schema: { $ref: '#/components/schemas/MoveTaskResult' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/tasks/{taskId}/history:
@@ -138,6 +143,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/StatusChange' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/tasks/{taskId}/comments:
@@ -156,6 +162,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Comment' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
     post:
@@ -174,6 +181,7 @@ paths:
               schema: { $ref: '#/components/schemas/Comment' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/tasks/{taskId}/comments/{commentId}:
@@ -345,6 +353,13 @@ components:
             type: array
             items: { type: string }
   responses:
+    CallerNotAllowed:
+      description: >-
+        The calling service's X-Api-Key is valid but not allowed on this route
+        (research R8 key matrix). Unknown or missing keys get 401 instead.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
     ValidationFailed:
       description: Input failed validation (including unknown acting user); nothing was changed.
       content:
@@ -356,7 +371,9 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
     Forbidden:
-      description: Acting user is not the comment's author.
+      description: >-
+        Acting user is not the comment's author, or the calling service's key is not
+        allowed on this route (research R8 key matrix).
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }

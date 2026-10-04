@@ -34,6 +34,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/User' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/users/{userId}:
     get:
@@ -47,6 +48,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/projects:
@@ -65,6 +67,7 @@ paths:
                 items: { $ref: '#/components/schemas/Project' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
     post:
       operationId: createProject
@@ -86,6 +89,7 @@ paths:
               schema: { $ref: '#/components/schemas/Project' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/projects/{projectId}:
     get:
@@ -103,6 +107,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Project' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/CallerNotAllowed' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
 components:
@@ -171,6 +176,13 @@ components:
             type: array
             items: { type: string }
   responses:
+    CallerNotAllowed:
+      description: >-
+        The calling service's X-Api-Key is valid but not allowed on this route
+        (research R8 key matrix). Unknown or missing keys get 401 instead.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
     ValidationFailed:
       description: Input failed validation; nothing was changed.
       content:

@@ -51,6 +51,7 @@ No entity has a concurrency token.
 | `occurredAt` | timestamptz | Same transaction as the change |
 | `dispatchedAt` | timestamptz, nullable | Set after delivery succeeds |
 | `attempts` | int | Retry count; backoff capped at 1 minute |
+| `deadLetteredAt` | timestamptz, nullable | Set when the receiver rejects the event permanently (`400` or `403`); the dispatcher never retries it. Each dead-letter is audited (`EventDeadLettered`) and counted (`taskify.outbox.deadlettered`) |
 
 ## Tasks service (`tasksdb`)
 

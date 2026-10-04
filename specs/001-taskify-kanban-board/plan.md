@@ -89,7 +89,7 @@ criteria.
 | I. Security-First | Threat assessment in the plan | See "Threat assessment" below | ✅ |
 | I. Security-First | Threat assessment in the **spec** | spec.md "Security & Threat Assessment" covers authentication, authorization, data exposure and abuse, plus residual risk | ✅ |
 | I. Security-First | Least privilege | One DB user per service with access to its own database only; Tasks DB user cannot UPDATE or DELETE status history; each service accepts only the keys in the R8 key matrix, and only for the routes listed there | ✅ |
-| I. Security-First | No secrets in source | Four API keys and the Postgres password are Aspire secret parameters (user secrets locally, secret store when deployed); the dev Postgres TLS key is generated at startup and never stored | ✅ |
+| I. Security-First | No secrets in source | Four API keys, the Postgres password and the Data Protection certificate are Aspire secret parameters (user secrets locally, secret store when deployed); the Web app's Data Protection key ring is encrypted at rest with that certificate; the dev Postgres TLS key is generated at startup and never stored | ✅ |
 | I. Security-First | TLS everywhere | `https://` service URIs only (never `https+http://`); APIs have no HTTP listener; hub over WSS; Npgsql `SSL Mode=Require` (dev) or `VerifyFull` (deployed); HSTS on Web (R16) | ✅ |
 | I. Security-First | No sensitive data in logs or responses | Audit logs leave out text content, keys and cookies; Problem Details hide internal details (R13, R7) | ✅ |
 | I. Security-First | Dependency vulnerabilities resolved | `dotnet list package --vulnerable` in CI fails on high or critical | ✅ |

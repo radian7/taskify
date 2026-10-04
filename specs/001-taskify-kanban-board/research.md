@@ -146,7 +146,10 @@ message contract, and source IP in audit logs.
   - Every service-to-service call carries an `X-Api-Key` header holding a per-caller secret
     from an Aspire secret parameter. Each API accepts only the keys of its allowed callers.
   - Only the Web resource has an external endpoint; APIs are internal to the Aspire network.
-  - **Key matrix** (which caller keys each service accepts; anything else → `401`):
+  - **Key matrix** (which caller keys each service accepts on which routes). A missing key, or a
+    key that is not one of the service's configured callers, gets `401`. A configured caller's
+    key on a route the matrix does not allow gets `403` (the `CallerNotAllowed` response in the
+    OpenAPI contracts):
 
     | Service ← caller | Web key | Projects key | Tasks key | Notifications key |
     |---|---|---|---|---|
@@ -156,7 +159,9 @@ message contract, and source IP in audit logs.
     | Notifications API `/internal/events` | ❌ `403` | ✅ `ProjectCreated` only | ✅ task and comment events only | — |
 
     AppHost secret parameters: `web-api-key`, `projects-api-key`, `tasks-api-key`,
-    `notifications-api-key`. Each resource gets only its own key, plus the keys of the callers
+    `notifications-api-key`, plus `dataprotection-cert` and `dataprotection-cert-password`
+    (Web only). The certificate encrypts the Web app's Data Protection key ring at rest; that
+    key ring protects the selected-user cookie. Each resource gets only its own key, plus the keys of the callers
     it accepts.
   - **Exempt from the acting-user header**: `GET /api/users` and `GET /api/users/{userId}`.
     They are needed before anyone is selected (the user selection screen) and by services
@@ -283,7 +288,11 @@ message contract, and source IP in audit logs.
   OpenTelemetry counter `taskify.rejections`, tagged with the reason (validation, auth, rate
   limit). The Aspire dashboard shows it in development. A deployment alert fires when there are
   more than 50 rejections in 5 minutes for one source IP or calling service. The threshold is
-  set in configuration, not code.
+  set in configuration, not code. The rule lives in `deploy/alerts/rejections.yaml`.
+- **Dropped events**: an outbox event the receiver rejects permanently (`400` or `403`) is
+  dead-lettered (`deadLetteredAt`), audited as `EventDeadLettered` (event ID and type only) and
+  counted in `taskify.outbox.deadlettered`, which has its own alert in the same file. A dropped
+  event means a live update or notification was missed, so it must never be silent.
 - **Rationale**: FR-022, FR-032 and the constitution's audit logging requirement.
 
 ## R14. Concurrent edits (spec FR-011, clarification 2026-10-04)
