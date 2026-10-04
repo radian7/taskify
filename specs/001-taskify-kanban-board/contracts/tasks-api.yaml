@@ -4,11 +4,19 @@ info:
   version: 1.0.0
   description: |
     Tasks, status history, and comments.
-    Internal service: reachable only from the Web app. All requests require `X-Api-Key`
-    and `X-Taskify-User` (acting user; phase 1 has no end-user login).
+    Internal service: reachable only from the Web app (the only accepted `X-Api-Key` caller,
+    research R8 key matrix). All requests require `X-Api-Key` and `X-Taskify-User` (acting
+    user; phase 1 has no end-user login). Concurrent edits and moves: the last save wins
+    (spec FR-011); there is no version check.
     Shared schemas (ProblemDetails and the error responses) match projects-api.yaml.
+    Text limits count user-perceived characters (grapheme clusters, spec FR-019). The
+    `maxLength` values in the schemas are a coarse abuse guard of 16 code points per allowed
+    character; the real limit is stated in each field's description and enforced by the API.
+    Requests from the Web app may carry `X-Taskify-Client-Ip` (end-user source IP, used only
+    for audit logs, FR-032); it is ignored from any other caller.
+    Every operation is rate-limited per acting user (FR-031) and may return `429`.
 servers:
-  - url: https+http://tasks-api
+  - url: https://tasks-api
 security:
   - apiKey: []
 paths:
@@ -32,6 +40,7 @@ paths:
                 items: { $ref: '#/components/schemas/TaskSummary' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
     post:
       operationId: createTask
       summary: Create a task in To Do (FR-009).
@@ -67,6 +76,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TaskDetail' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
     put:
       operationId: updateTask
@@ -84,6 +94,7 @@ paths:
               schema: { $ref: '#/components/schemas/TaskDetail' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/UnknownReference' }
   /api/tasks/{taskId}/moves:
@@ -109,6 +120,7 @@ paths:
               schema: { $ref: '#/components/schemas/MoveTaskResult' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/tasks/{taskId}/history:
     get:
@@ -126,6 +138,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/StatusChange' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/tasks/{taskId}/comments:
     parameters:
@@ -143,6 +156,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Comment' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
     post:
       operationId: addComment
@@ -186,6 +200,7 @@ paths:
               schema: { $ref: '#/components/schemas/Comment' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/CommentDeleted' }
@@ -199,6 +214,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Comment' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/CommentDeleted' }
@@ -231,7 +247,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         projectId: { type: string, format: uuid }
-        title: { type: string, maxLength: 200 }
+        title: { type: string, maxLength: 3200, description: 1–200 user-perceived characters. }
         status: { $ref: '#/components/schemas/TaskStatus' }
         assigneeUserId: { type: [string, 'null'], format: uuid }
         commentCount: { type: integer, minimum: 0, description: Excludes deleted comments. }
@@ -243,7 +259,7 @@ components:
         - type: object
           required: [createdByUserId]
           properties:
-            description: { type: [string, 'null'], maxLength: 5000 }
+            description: { type: [string, 'null'], maxLength: 80000, description: Up to 5,000 user-perceived characters. }
             createdByUserId: { type: string, format: uuid }
     CreateTaskRequest:
       type: object
@@ -251,16 +267,16 @@ components:
       required: [projectId, title]
       properties:
         projectId: { type: string, format: uuid }
-        title: { type: string, maxLength: 200, description: 1–200 chars after trim. }
-        description: { type: [string, 'null'], maxLength: 5000 }
+        title: { type: string, maxLength: 3200, description: 1–200 user-perceived characters after trim. }
+        description: { type: [string, 'null'], maxLength: 80000, description: Up to 5,000 user-perceived characters after trim. }
         assigneeUserId: { type: [string, 'null'], format: uuid }
     UpdateTaskRequest:
       type: object
       additionalProperties: false
       required: [title, assigneeUserId]
       properties:
-        title: { type: string, maxLength: 200, description: 1–200 chars after trim. }
-        description: { type: [string, 'null'], maxLength: 5000 }
+        title: { type: string, maxLength: 3200, description: 1–200 user-perceived characters after trim. }
+        description: { type: [string, 'null'], maxLength: 80000, description: Up to 5,000 user-perceived characters after trim. }
         assigneeUserId:
           type: [string, 'null']
           format: uuid
@@ -303,7 +319,7 @@ components:
         authorUserId: { type: string, format: uuid }
         text:
           type: [string, 'null']
-          maxLength: 2000
+          maxLength: 32000
           description: null when the comment is deleted.
         createdAt: { type: string, format: date-time }
         editedAt: { type: [string, 'null'], format: date-time }
@@ -314,7 +330,7 @@ components:
       additionalProperties: false
       required: [text]
       properties:
-        text: { type: string, maxLength: 2000, description: 1–2,000 chars after trim. }
+        text: { type: string, maxLength: 32000, description: 1–2,000 user-perceived characters after trim. }
     ProblemDetails:
       type: object
       properties:

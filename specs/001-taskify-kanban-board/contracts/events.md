@@ -1,5 +1,9 @@
 # Event Contracts (v1)
 
+> **Authoritative schema**: [events.asyncapi.yaml](events.asyncapi.yaml) (AsyncAPI 3.1, validated
+> in CI). This page is a readable summary; if they differ, the AsyncAPI file wins and this page is
+> a documentation defect. Delivery is over HTTPS only (no plain-HTTP fallback).
+
 Domain events published by the Projects and Tasks APIs through their outbox tables and delivered
 to `POST /internal/events` on the Notifications API (see [notifications-api.yaml](notifications-api.yaml)).
 The event types are defined once in `src/Taskify.Contracts` and shared by publishers and the consumer.

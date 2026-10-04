@@ -8,8 +8,16 @@ info:
     Public routes (`/api/...`) require `X-Api-Key` (Web app key) and `X-Taskify-User`.
     The internal route (`/internal/events`) accepts only the Projects and Tasks API keys.
     Shared schemas (ProblemDetails and the error responses) match projects-api.yaml.
+    Text limits count user-perceived characters (grapheme clusters, spec FR-019). The
+    `maxLength` values in the schemas are a coarse abuse guard of 16 code points per allowed
+    character; the real limit is stated in each field's description and enforced by the API.
+    Requests from the Web app may carry `X-Taskify-Client-Ip` (end-user source IP, used only
+    for audit logs, FR-032); it is ignored from any other caller.
+    Every `/api/...` operation is rate-limited per acting user (FR-031) and may return `429`;
+    `/internal/events` is rate-limited per calling service instead.
+    Event envelopes and payloads are defined authoritatively in events.asyncapi.yaml.
 servers:
-  - url: https+http://notifications-api
+  - url: https://notifications-api
 security:
   - apiKey: []
 paths:
@@ -35,6 +43,7 @@ paths:
                 items: { $ref: '#/components/schemas/Notification' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/notifications/unread-count:
     get:
       operationId: getUnreadCount
@@ -52,6 +61,7 @@ paths:
                 properties:
                   count: { type: integer, minimum: 0 }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/notifications/{notificationId}/read:
     post:
       operationId: markRead
@@ -65,6 +75,7 @@ paths:
       responses:
         '204': { description: Marked read. }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404':
           description: Not found, or it belongs to a different user (not revealed).
           content:
@@ -78,6 +89,7 @@ paths:
       responses:
         '204': { description: All of the acting user's notifications marked read. }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /internal/events:
     post:
       operationId: receiveEvent
@@ -94,6 +106,7 @@ paths:
         '202': { description: Accepted (or already processed). }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '403':
           description: Caller key is not allowed to publish this event type.
           content:
@@ -122,7 +135,7 @@ components:
         taskId: { type: string, format: uuid }
         projectId: { type: string, format: uuid }
         actorUserId: { type: string, format: uuid }
-        summary: { type: string, maxLength: 300 }
+        summary: { type: string, maxLength: 4800, description: Server-generated; at most 300 user-perceived characters. }
         createdAt: { type: string, format: date-time }
         isRead: { type: boolean }
     EventEnvelope:
@@ -162,6 +175,11 @@ components:
           schema: { $ref: '#/components/schemas/ProblemDetails' }
     Unauthorized:
       description: Missing or invalid X-Api-Key.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    TooManyRequests:
+      description: Rate limit exceeded (FR-031); nothing was changed. Includes a Retry-After header.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetails' }

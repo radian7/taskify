@@ -5,10 +5,19 @@ info:
   description: |
     Projects and the read-only directory of predefined users.
     Internal service: reachable only from the Web app and other Taskify services.
-    All requests require `X-Api-Key` (caller identity) and, except `GET /api/users`,
-    `X-Taskify-User` (acting user; phase 1 has no end-user login).
+    Accepted `X-Api-Key` callers: Web, Tasks API, Notifications API (research R8 key matrix).
+    All requests require `X-Api-Key` (caller identity). All requests except `GET /api/users` and
+    `GET /api/users/{userId}` also require `X-Taskify-User` (acting user; phase 1 has no
+    end-user login). The user routes are exempt because they are needed before a user is
+    selected and by services resolving the user directory.
+    Text limits count user-perceived characters (grapheme clusters, spec FR-019). The
+    `maxLength` values in the schemas are a coarse abuse guard of 16 code points per allowed
+    character; the real limit is stated in each field's description and enforced by the API.
+    Requests from the Web app may carry `X-Taskify-Client-Ip` (end-user source IP, used only
+    for audit logs, FR-032); it is ignored from any other caller.
+    Every operation is rate-limited per acting user (FR-031) and may return `429`.
 servers:
-  - url: https+http://projects-api
+  - url: https://projects-api
 security:
   - apiKey: []
 paths:
@@ -25,6 +34,7 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/User' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /api/users/{userId}:
     get:
       operationId: getUser
@@ -37,6 +47,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/projects:
     get:
@@ -54,6 +65,7 @@ paths:
                 items: { $ref: '#/components/schemas/Project' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
     post:
       operationId: createProject
       summary: Create a project (FR-006).
@@ -91,6 +103,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Project' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
@@ -125,8 +138,8 @@ components:
       required: [id, name, createdByUserId, createdAt]
       properties:
         id: { type: string, format: uuid }
-        name: { type: string, minLength: 1, maxLength: 100 }
-        description: { type: [string, 'null'], maxLength: 1000 }
+        name: { type: string, minLength: 1, maxLength: 1600, description: 1–100 user-perceived characters. }
+        description: { type: [string, 'null'], maxLength: 16000, description: Up to 1,000 user-perceived characters. }
         createdByUserId: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
     CreateProjectRequest:
@@ -136,12 +149,12 @@ components:
       properties:
         name:
           type: string
-          description: 1–100 characters after trimming whitespace.
-          maxLength: 100
+          description: 1–100 user-perceived characters after trimming whitespace.
+          maxLength: 1600
         description:
           type: [string, 'null']
-          description: Up to 1,000 characters after trimming.
-          maxLength: 1000
+          description: Up to 1,000 user-perceived characters after trimming.
+          maxLength: 16000
     ProblemDetails:
       type: object
       description: RFC 9457 Problem Details. Never contains stack traces or internal identifiers.

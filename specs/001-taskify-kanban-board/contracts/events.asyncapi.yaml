@@ -1,0 +1,384 @@
+asyncapi: 3.1.0
+info:
+  title: Taskify Messages
+  version: 1.0.0
+  description: |
+    Machine-readable contract for every message exchanged between Taskify services
+    (constitution Principle IV). This file is authoritative; events.md and realtime-hub.md are
+    prose guides to it.
+
+    - Domain events: published by the Projects and Tasks APIs through their outbox and delivered
+      by HTTPS POST to the Notifications API `/internal/events` (see notifications-api.yaml).
+    - Hub messages: sent by the Notifications API SignalR hub `/hubs/board` to the Web server.
+
+    Payloads never contain task descriptions, project descriptions, or comment text. Titles and
+    names are included for notification summaries. Text limits count user-perceived characters
+    (spec FR-019); `maxLength` is a coarse abuse guard of 16 code points per allowed character.
+    Every message is validated by its receiver; internal origin does not imply trust
+    (Principle II).
+  tags:
+    - name: domain-event
+    - name: hub-message
+
+defaultContentType: application/json
+
+servers:
+  notifications:
+    host: notifications-api
+    protocol: https
+    description: |
+      Notifications API, reachable only inside the Aspire network over TLS. Plain HTTP is not
+      offered. Callers authenticate with `X-Api-Key` (research R8 key matrix).
+    security:
+      - $ref: '#/components/securitySchemes/apiKey'
+
+channels:
+  internalEvents:
+    address: /internal/events
+    title: Domain event intake
+    description: |
+      HTTPS POST endpoint receiving one EventEnvelope per request. Idempotent by `eventId`.
+      Only the Projects API key may send ProjectCreated; only the Tasks API key may send the
+      other types. Responses: 202 accepted or duplicate, 400 invalid, 401 bad key,
+      403 caller not allowed for the type, 429 rate-limited.
+    servers:
+      - $ref: '#/servers/notifications'
+    messages:
+      projectCreated: { $ref: '#/components/messages/ProjectCreated' }
+      taskCreated: { $ref: '#/components/messages/TaskCreated' }
+      taskUpdated: { $ref: '#/components/messages/TaskUpdated' }
+      taskAssigned: { $ref: '#/components/messages/TaskAssigned' }
+      taskMoved: { $ref: '#/components/messages/TaskMoved' }
+      commentAdded: { $ref: '#/components/messages/CommentAdded' }
+      commentEdited: { $ref: '#/components/messages/CommentEdited' }
+      commentDeleted: { $ref: '#/components/messages/CommentDeleted' }
+    bindings:
+      http:
+        bindingVersion: 0.3.0
+
+  boardHub:
+    address: /hubs/board
+    title: Real-time board hub (SignalR)
+    description: |
+      SignalR hub. Only the Web server connects, authenticated with the Web API key. Messages
+      are change signals: the Web server re-fetches data from the REST APIs and never renders
+      message content directly. Group membership is managed with the client methods
+      JoinProject/LeaveProject (projectId), JoinTask/LeaveTask (taskId) and
+      JoinUser/LeaveUser (userId, must be a predefined user); invalid arguments raise a
+      HubException with a generic message.
+    servers:
+      - $ref: '#/servers/notifications'
+    messages:
+      boardChanged: { $ref: '#/components/messages/BoardChanged' }
+      taskChanged: { $ref: '#/components/messages/TaskChanged' }
+      projectListChanged: { $ref: '#/components/messages/ProjectListChanged' }
+      notificationCreated: { $ref: '#/components/messages/NotificationCreated' }
+
+operations:
+  publishProjectEvents:
+    action: send
+    title: Projects API publishes project events
+    channel: { $ref: '#/channels/internalEvents' }
+    messages:
+      - $ref: '#/channels/internalEvents/messages/projectCreated'
+  publishTaskEvents:
+    action: send
+    title: Tasks API publishes task and comment events
+    channel: { $ref: '#/channels/internalEvents' }
+    messages:
+      - $ref: '#/channels/internalEvents/messages/taskCreated'
+      - $ref: '#/channels/internalEvents/messages/taskUpdated'
+      - $ref: '#/channels/internalEvents/messages/taskAssigned'
+      - $ref: '#/channels/internalEvents/messages/taskMoved'
+      - $ref: '#/channels/internalEvents/messages/commentAdded'
+      - $ref: '#/channels/internalEvents/messages/commentEdited'
+      - $ref: '#/channels/internalEvents/messages/commentDeleted'
+  receiveBoardSignals:
+    action: receive
+    title: Web server receives hub signals
+    channel: { $ref: '#/channels/boardHub' }
+    messages:
+      - $ref: '#/channels/boardHub/messages/boardChanged'
+      - $ref: '#/channels/boardHub/messages/taskChanged'
+      - $ref: '#/channels/boardHub/messages/projectListChanged'
+      - $ref: '#/channels/boardHub/messages/notificationCreated'
+
+components:
+  securitySchemes:
+    apiKey:
+      type: httpApiKey
+      name: X-Api-Key
+      in: header
+      description: Per-caller secret from an Aspire secret parameter (deviation D2).
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Timestamp: { type: string, format: date-time, description: UTC. }
+    TaskStatus:
+      type: string
+      enum: [ToDo, InProgress, InReview, Done]
+    Title:
+      type: string
+      minLength: 1
+      maxLength: 3200
+      description: Task title, 1–200 user-perceived characters.
+    ProjectName:
+      type: string
+      minLength: 1
+      maxLength: 1600
+      description: Project name, 1–100 user-perceived characters.
+
+    EnvelopeBase:
+      type: object
+      required: [eventId, type, version, occurredAt, actorUserId, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'Outbox message ID; receiver de-duplicates on it.' }
+        type: { type: string }
+        version: { type: integer, const: 1 }
+        occurredAt: { $ref: '#/components/schemas/Timestamp' }
+        actorUserId: { $ref: '#/components/schemas/Uuid' }
+
+    ProjectCreatedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: ProjectCreated }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [projectId, name]
+              properties:
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                name: { $ref: '#/components/schemas/ProjectName' }
+      unevaluatedProperties: false
+
+    TaskCreatedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: TaskCreated }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [taskId, projectId, title, status]
+              properties:
+                taskId: { $ref: '#/components/schemas/Uuid' }
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                title: { $ref: '#/components/schemas/Title' }
+                status: { $ref: '#/components/schemas/TaskStatus' }
+                assigneeUserId: { type: [string, 'null'], format: uuid }
+      unevaluatedProperties: false
+
+    TaskUpdatedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: TaskUpdated }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [taskId, projectId, title]
+              properties:
+                taskId: { $ref: '#/components/schemas/Uuid' }
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                title: { $ref: '#/components/schemas/Title' }
+      unevaluatedProperties: false
+
+    TaskAssignedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: TaskAssigned }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [taskId, projectId, title]
+              properties:
+                taskId: { $ref: '#/components/schemas/Uuid' }
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                title: { $ref: '#/components/schemas/Title' }
+                previousAssigneeUserId: { type: [string, 'null'], format: uuid }
+                assigneeUserId: { type: [string, 'null'], format: uuid }
+      unevaluatedProperties: false
+
+    TaskMovedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: TaskMoved }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [taskId, projectId, title, fromStatus, toStatus]
+              properties:
+                taskId: { $ref: '#/components/schemas/Uuid' }
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                title: { $ref: '#/components/schemas/Title' }
+                fromStatus: { $ref: '#/components/schemas/TaskStatus' }
+                toStatus: { $ref: '#/components/schemas/TaskStatus' }
+                assigneeUserId: { type: [string, 'null'], format: uuid }
+      unevaluatedProperties: false
+
+    CommentAddedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: CommentAdded }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [taskId, projectId, title, commentId]
+              properties:
+                taskId: { $ref: '#/components/schemas/Uuid' }
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                title: { $ref: '#/components/schemas/Title' }
+                commentId: { $ref: '#/components/schemas/Uuid' }
+                assigneeUserId: { type: [string, 'null'], format: uuid }
+      unevaluatedProperties: false
+
+    CommentEditedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: CommentEdited }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [taskId, projectId, commentId]
+              properties:
+                taskId: { $ref: '#/components/schemas/Uuid' }
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                commentId: { $ref: '#/components/schemas/Uuid' }
+      unevaluatedProperties: false
+
+    CommentDeletedEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            type: { const: CommentDeleted }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [taskId, projectId, commentId]
+              properties:
+                taskId: { $ref: '#/components/schemas/Uuid' }
+                projectId: { $ref: '#/components/schemas/Uuid' }
+                commentId: { $ref: '#/components/schemas/Uuid' }
+      unevaluatedProperties: false
+
+    BoardChangedPayload:
+      type: object
+      additionalProperties: false
+      required: [eventId, type, projectId, actorUserId, occurredAt]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid' }
+        type: { type: string, enum: [TaskCreated, TaskUpdated, TaskAssigned, TaskMoved, CommentAdded, CommentDeleted] }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        taskId: { type: [string, 'null'], format: uuid }
+        actorUserId: { $ref: '#/components/schemas/Uuid' }
+        occurredAt: { $ref: '#/components/schemas/Timestamp' }
+
+    TaskChangedPayload:
+      type: object
+      additionalProperties: false
+      required: [eventId, type, taskId, actorUserId, occurredAt]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid' }
+        type: { type: string, enum: [TaskUpdated, TaskAssigned, TaskMoved, CommentAdded, CommentEdited, CommentDeleted] }
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        actorUserId: { $ref: '#/components/schemas/Uuid' }
+        occurredAt: { $ref: '#/components/schemas/Timestamp' }
+
+    ProjectListChangedPayload:
+      type: object
+      additionalProperties: false
+      required: [eventId, projectId]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+
+    NotificationPayload:
+      type: object
+      additionalProperties: false
+      description: Same shape as Notification in notifications-api.yaml.
+      required: [id, type, taskId, projectId, actorUserId, summary, createdAt, isRead]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        type: { type: string, enum: [TaskAssigned, TaskMoved, TaskCommented] }
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        actorUserId: { $ref: '#/components/schemas/Uuid' }
+        summary: { type: string, maxLength: 4800, description: 'Server-generated; at most 300 user-perceived characters.' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        isRead: { type: boolean }
+
+  messages:
+    ProjectCreated:
+      name: ProjectCreated
+      tags: [{ name: domain-event }]
+      summary: A project was created. Broadcast to all clients; creates no notification.
+      payload: { $ref: '#/components/schemas/ProjectCreatedEnvelope' }
+    TaskCreated:
+      name: TaskCreated
+      tags: [{ name: domain-event }]
+      summary: A task was created. Notifies the assignee (as TaskAssigned) if assignee ≠ actor.
+      payload: { $ref: '#/components/schemas/TaskCreatedEnvelope' }
+    TaskUpdated:
+      name: TaskUpdated
+      tags: [{ name: domain-event }]
+      summary: Title or description changed. No notification.
+      payload: { $ref: '#/components/schemas/TaskUpdatedEnvelope' }
+    TaskAssigned:
+      name: TaskAssigned
+      tags: [{ name: domain-event }]
+      summary: Assignee changed. Notifies the new assignee if assignee ≠ actor.
+      payload: { $ref: '#/components/schemas/TaskAssignedEnvelope' }
+    TaskMoved:
+      name: TaskMoved
+      tags: [{ name: domain-event }]
+      summary: Column changed (never sent for a no-op move). Notifies the assignee if present and ≠ actor.
+      payload: { $ref: '#/components/schemas/TaskMovedEnvelope' }
+    CommentAdded:
+      name: CommentAdded
+      tags: [{ name: domain-event }]
+      summary: Comment posted. Notifies the assignee (as TaskCommented) if present and ≠ actor.
+      payload: { $ref: '#/components/schemas/CommentAddedEnvelope' }
+    CommentEdited:
+      name: CommentEdited
+      tags: [{ name: domain-event }]
+      summary: Comment edited by its author. No notification.
+      payload: { $ref: '#/components/schemas/CommentEditedEnvelope' }
+    CommentDeleted:
+      name: CommentDeleted
+      tags: [{ name: domain-event }]
+      summary: Comment deleted by its author; text already erased. No notification.
+      payload: { $ref: '#/components/schemas/CommentDeletedEnvelope' }
+
+    BoardChanged:
+      name: BoardChanged
+      tags: [{ name: hub-message }]
+      summary: Sent to group project:{projectId}.
+      payload: { $ref: '#/components/schemas/BoardChangedPayload' }
+    TaskChanged:
+      name: TaskChanged
+      tags: [{ name: hub-message }]
+      summary: Sent to group task:{taskId}.
+      payload: { $ref: '#/components/schemas/TaskChangedPayload' }
+    ProjectListChanged:
+      name: ProjectListChanged
+      tags: [{ name: hub-message }]
+      summary: Sent to group projects.
+      payload: { $ref: '#/components/schemas/ProjectListChangedPayload' }
+    NotificationCreated:
+      name: NotificationCreated
+      tags: [{ name: hub-message }]
+      summary: Sent to group user:{recipientUserId}.
+      payload: { $ref: '#/components/schemas/NotificationPayload' }

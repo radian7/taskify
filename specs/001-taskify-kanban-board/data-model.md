@@ -6,6 +6,14 @@ Each service owns its own database (see [research.md](research.md) R3). Data own
 service is referenced by ID only, with no foreign key across databases. All IDs are UUIDs. All
 times are stored in UTC (`timestamptz`). Strings are trimmed before validation and storage.
 
+**Text lengths** ("chars" below) are counted in user-perceived characters (grapheme clusters,
+spec FR-019, research R7). Every text field is also rejected above 16 UTF-16 code units per
+allowed character (an abuse guard). Text columns are PostgreSQL `text`, so the database does
+not enforce a length; the API validators do.
+
+**Concurrent writes**: the last save wins for task edits and moves (spec FR-011, research R14).
+No entity has a concurrency token.
+
 ## Projects service (`projectsdb`)
 
 ### User (read-only, seeded)
@@ -134,19 +142,34 @@ ToDo ⇄ InProgress ⇄ InReview ⇄ Done   (plus every other pair: fully connec
 | `readAt` | timestamptz, nullable | Null = unread |
 | `sourceEventId` | UUID, unique | Event ID; makes event delivery idempotent |
 
-- Retention: deleted 30 days after `createdAt` by a daily cleanup job.
+- Retention: deleted 30 days after `createdAt` by a daily cleanup job (FR-030).
+- Visibility: read and changed only by the recipient. Any other user gets `404` (FR-029).
 - List order: `createdAt` descending.
 
-### Trigger rules (from events)
+### ProcessedEvent (de-duplication of incoming events)
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `eventId` | UUID, primary key | `eventId` from the envelope |
+| `receivedAt` | timestamptz | Set by the server |
+
+- Inserted in the same transaction as any notifications the event creates. A repeated
+  `eventId` is accepted (`202`) and ignored, even for events that create no notification.
+- Deleted 30 days after `receivedAt` by the same daily job as notifications. The outbox stops
+  retrying long before then.
+
+### Trigger rules (from events, spec FR-027)
 
 | Event | Recipient | Condition |
 |-------|-----------|-----------|
+| `TaskCreated` (with an assignee) | assignee, as a `TaskAssigned` notification | assignee ≠ actor |
 | `TaskAssigned` | new assignee | assignee ≠ actor |
 | `TaskMoved` | current assignee | assignee exists and ≠ actor |
 | `CommentAdded` | current assignee | assignee exists and ≠ actor |
 
-The other events (`TaskCreated`, `TaskUpdated`, `CommentEdited`, `CommentDeleted`,
-`ProjectCreated`) create no notifications. They are only broadcast for real-time board updates.
+The other events (`TaskCreated` without an assignee or assigned to the actor, `TaskUpdated`,
+`CommentEdited`, `CommentDeleted`, `ProjectCreated`) create no notifications. They are only
+broadcast for real-time updates (spec FR-025).
 
 ## Cross-service references
 
@@ -154,4 +177,23 @@ The other events (`TaskCreated`, `TaskUpdated`, `CommentEdited`, `CommentDeleted
 |-----------|-----------------|-------|
 | Task.projectId | Projects | `GET /api/projects/{id}` on task create; `404` → reject with `422` |
 | Task.assigneeUserId, *UserId | Projects | Cached user list from `GET /api/users` |
-| Notification.taskId/projectId | Tasks/Projects | Taken from trusted event payload |
+| Notification.taskId/projectId | Tasks/Projects | Taken from the event payload after it is validated against its AsyncAPI schema and the caller policy. Internal origin does not imply trust (Principle II) |
+| Notification.recipientUserId, actorUserId | Projects | Must be in the cached user list; otherwise the event is rejected with `400` |
+
+## Audit event (log record, not a table)
+
+Written through the OpenTelemetry log pipeline (research R13), never to a service database.
+
+| Field | Notes |
+|-------|-------|
+| `timestamp` | UTC |
+| `action` | For example `TaskMoved`, `CommentDeleted`, `UserSelected`, `UserSelectionRestored`, `RequestRejected` |
+| `actingUserId` | Null when there is none (for example a rejected request with an unknown user) |
+| `previousUserId` | `UserSelected` only |
+| `entityType`, `entityId` | When the action targets an entity |
+| `outcome` | `Succeeded` or a rejection reason (`Validation`, `Unauthorized`, `Forbidden`, `NotFound`, `Conflict`, `TooLarge`, `UnknownReference`, `RateLimited`) |
+| `callerService` | From the API key |
+| `sourceIp` | End-user IP, from `X-Taskify-Client-Ip` when the caller is Web (research R8) |
+| `correlationId` | Trace ID |
+
+Never logged: titles, names typed by users, descriptions, comment text, API keys, cookie values.
