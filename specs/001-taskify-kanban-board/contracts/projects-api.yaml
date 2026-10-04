@@ -1,0 +1,180 @@
+openapi: 3.1.0
+info:
+  title: Taskify Projects API
+  version: 1.0.0
+  description: |
+    Projects and the read-only directory of predefined users.
+    Internal service: reachable only from the Web app and other Taskify services.
+    All requests require `X-Api-Key` (caller identity) and, except `GET /api/users`,
+    `X-Taskify-User` (acting user; phase 1 has no end-user login).
+servers:
+  - url: https+http://projects-api
+security:
+  - apiKey: []
+paths:
+  /api/users:
+    get:
+      operationId: listUsers
+      summary: List the five predefined users.
+      responses:
+        '200':
+          description: All users.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/users/{userId}:
+    get:
+      operationId: getUser
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: The user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/projects:
+    get:
+      operationId: listProjects
+      summary: List all projects, newest first.
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+      responses:
+        '200':
+          description: All projects.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Project' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createProject
+      summary: Create a project (FR-006).
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProjectRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/projects/{projectId}:
+    get:
+      operationId: getProject
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+  parameters:
+    ActingUser:
+      name: X-Taskify-User
+      in: header
+      required: true
+      description: ID of one of the five predefined users. Unknown IDs are rejected with 400.
+      schema: { type: string, format: uuid }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, displayName, role]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string, maxLength: 100 }
+        role: { type: string, enum: [ProductManager, Engineer] }
+    Project:
+      type: object
+      additionalProperties: false
+      required: [id, name, createdByUserId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: [string, 'null'], maxLength: 1000 }
+        createdByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: 1–100 characters after trimming whitespace.
+          maxLength: 100
+        description:
+          type: [string, 'null']
+          description: Up to 1,000 characters after trimming.
+          maxLength: 1000
+    ProblemDetails:
+      type: object
+      description: RFC 9457 Problem Details. Never contains stack traces or internal identifiers.
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        traceId: { type: string }
+        errors:
+          type: object
+          description: Field name → list of validation messages.
+          additionalProperties:
+            type: array
+            items: { type: string }
+  responses:
+    ValidationFailed:
+      description: Input failed validation; nothing was changed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Unauthorized:
+      description: Missing or invalid X-Api-Key.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    NotFound:
+      description: The resource does not exist.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    TooManyRequests:
+      description: Rate limit exceeded.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }

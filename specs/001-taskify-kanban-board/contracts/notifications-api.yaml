@@ -1,0 +1,167 @@
+openapi: 3.1.0
+info:
+  title: Taskify Notifications API
+  version: 1.0.0
+  description: |
+    Per-user in-app notifications and the internal event intake that feeds notifications and
+    real-time board updates (see events.md and realtime-hub.md).
+    Public routes (`/api/...`) require `X-Api-Key` (Web app key) and `X-Taskify-User`.
+    The internal route (`/internal/events`) accepts only the Projects and Tasks API keys.
+    Shared schemas (ProblemDetails and the error responses) match projects-api.yaml.
+servers:
+  - url: https+http://notifications-api
+security:
+  - apiKey: []
+paths:
+  /api/notifications:
+    get:
+      operationId: listNotifications
+      summary: Notifications for the acting user, newest first.
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+        - name: unreadOnly
+          in: query
+          schema: { type: boolean, default: false }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Notifications.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/notifications/unread-count:
+    get:
+      operationId: getUnreadCount
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+      responses:
+        '200':
+          description: Count of unread notifications.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [count]
+                properties:
+                  count: { type: integer, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/notifications/{notificationId}/read:
+    post:
+      operationId: markRead
+      summary: Mark one of the acting user's notifications read (idempotent).
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Marked read. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Not found, or it belongs to a different user (not revealed).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+  /api/notifications/read-all:
+    post:
+      operationId: markAllRead
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+      responses:
+        '204': { description: All of the acting user's notifications marked read. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /internal/events:
+    post:
+      operationId: receiveEvent
+      summary: Receive a domain event from the Projects or Tasks API (outbox dispatcher).
+      description: |
+        Idempotent by `eventId`. A repeat delivery returns 202 and does nothing.
+        The payload is validated against the schema for its `type` (events.md).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventEnvelope' }
+      responses:
+        '202': { description: Accepted (or already processed). }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Caller key is not allowed to publish this event type.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetails' }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+  parameters:
+    ActingUser:
+      name: X-Taskify-User
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    Notification:
+      type: object
+      additionalProperties: false
+      required: [id, type, taskId, projectId, actorUserId, summary, createdAt, isRead]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [TaskAssigned, TaskMoved, TaskCommented] }
+        taskId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        actorUserId: { type: string, format: uuid }
+        summary: { type: string, maxLength: 300 }
+        createdAt: { type: string, format: date-time }
+        isRead: { type: boolean }
+    EventEnvelope:
+      type: object
+      additionalProperties: false
+      required: [eventId, type, version, occurredAt, actorUserId, payload]
+      properties:
+        eventId: { type: string, format: uuid }
+        type:
+          type: string
+          enum: [ProjectCreated, TaskCreated, TaskUpdated, TaskAssigned, TaskMoved,
+                 CommentAdded, CommentEdited, CommentDeleted]
+        version: { type: integer, const: 1 }
+        occurredAt: { type: string, format: date-time }
+        actorUserId: { type: string, format: uuid }
+        payload:
+          type: object
+          description: Type-specific body; see events.md.
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        traceId: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+  responses:
+    ValidationFailed:
+      description: Input failed validation; nothing was changed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Unauthorized:
+      description: Missing or invalid X-Api-Key.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }

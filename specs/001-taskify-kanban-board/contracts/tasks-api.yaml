@@ -1,0 +1,366 @@
+openapi: 3.1.0
+info:
+  title: Taskify Tasks API
+  version: 1.0.0
+  description: |
+    Tasks, status history, and comments.
+    Internal service: reachable only from the Web app. All requests require `X-Api-Key`
+    and `X-Taskify-User` (acting user; phase 1 has no end-user login).
+    Shared schemas (ProblemDetails and the error responses) match projects-api.yaml.
+servers:
+  - url: https+http://tasks-api
+security:
+  - apiKey: []
+paths:
+  /api/tasks:
+    get:
+      operationId: listTasks
+      summary: List all tasks of a project for its board (newest first in each column).
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+        - name: projectId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Tasks of the project (may be empty).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TaskSummary' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      operationId: createTask
+      summary: Create a task in To Do (FR-009).
+      parameters:
+        - $ref: '#/components/parameters/ActingUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTaskRequest' }
+      responses:
+        '201':
+          description: Created in status ToDo.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnknownReference' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ActingUser'
+    get:
+      operationId: getTask
+      responses:
+        '200':
+          description: The task.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateTask
+      summary: Replace title, description, and assignee (FR-011). Any user may call this.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTaskRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskDetail' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnknownReference' }
+  /api/tasks/{taskId}/moves:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ActingUser'
+    post:
+      operationId: moveTask
+      summary: Move a task to a column (FR-012). Any user, any column. Last write wins.
+      description: |
+        If `toStatus` equals the current status the call succeeds with `changed: false`;
+        no history entry or event is produced.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MoveTaskRequest' }
+      responses:
+        '200':
+          description: Move result.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MoveTaskResult' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/tasks/{taskId}/history:
+    get:
+      operationId: getTaskHistory
+      summary: Status history, newest first (FR-023). Read-only.
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/ActingUser'
+      responses:
+        '200':
+          description: History entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StatusChange' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/tasks/{taskId}/comments:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ActingUser'
+    get:
+      operationId: listComments
+      summary: Comments oldest first, including deleted placeholders (FR-016, FR-024).
+      responses:
+        '200':
+          description: Comments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Comment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: addComment
+      summary: Add a comment as the acting user (FR-015).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentTextRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/tasks/{taskId}/comments/{commentId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ActingUser'
+      - name: commentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      operationId: editComment
+      summary: Edit own comment (FR-017).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentTextRequest' }
+      responses:
+        '200':
+          description: Edited; editedAt set.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CommentDeleted' }
+    delete:
+      operationId: deleteComment
+      summary: Delete own comment; text is erased and a placeholder remains (FR-024).
+      responses:
+        '200':
+          description: Deleted; returns the placeholder.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/CommentDeleted' }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+  parameters:
+    ActingUser:
+      name: X-Taskify-User
+      in: header
+      required: true
+      description: ID of one of the five predefined users. Unknown IDs are rejected with 400.
+      schema: { type: string, format: uuid }
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    TaskStatus:
+      type: string
+      enum: [ToDo, InProgress, InReview, Done]
+    TaskSummary:
+      type: object
+      additionalProperties: false
+      required: [id, projectId, title, status, createdAt, updatedAt, commentCount]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        title: { type: string, maxLength: 200 }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        assigneeUserId: { type: [string, 'null'], format: uuid }
+        commentCount: { type: integer, minimum: 0, description: Excludes deleted comments. }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TaskDetail:
+      allOf:
+        - $ref: '#/components/schemas/TaskSummary'
+        - type: object
+          required: [createdByUserId]
+          properties:
+            description: { type: [string, 'null'], maxLength: 5000 }
+            createdByUserId: { type: string, format: uuid }
+    CreateTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [projectId, title]
+      properties:
+        projectId: { type: string, format: uuid }
+        title: { type: string, maxLength: 200, description: 1–200 chars after trim. }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        assigneeUserId: { type: [string, 'null'], format: uuid }
+    UpdateTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [title, assigneeUserId]
+      properties:
+        title: { type: string, maxLength: 200, description: 1–200 chars after trim. }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        assigneeUserId:
+          type: [string, 'null']
+          format: uuid
+          description: null unassigns the task.
+    MoveTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [toStatus]
+      properties:
+        toStatus: { $ref: '#/components/schemas/TaskStatus' }
+    MoveTaskResult:
+      type: object
+      additionalProperties: false
+      required: [changed, task]
+      properties:
+        changed: { type: boolean }
+        task: { $ref: '#/components/schemas/TaskDetail' }
+        statusChange:
+          oneOf:
+            - $ref: '#/components/schemas/StatusChange'
+            - type: 'null'
+    StatusChange:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, fromStatus, toStatus, movedByUserId, movedAt]
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        fromStatus: { $ref: '#/components/schemas/TaskStatus' }
+        toStatus: { $ref: '#/components/schemas/TaskStatus' }
+        movedByUserId: { type: string, format: uuid }
+        movedAt: { type: string, format: date-time }
+    Comment:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, authorUserId, createdAt, isDeleted]
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        authorUserId: { type: string, format: uuid }
+        text:
+          type: [string, 'null']
+          maxLength: 2000
+          description: null when the comment is deleted.
+        createdAt: { type: string, format: date-time }
+        editedAt: { type: [string, 'null'], format: date-time }
+        deletedAt: { type: [string, 'null'], format: date-time }
+        isDeleted: { type: boolean }
+    CommentTextRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string, maxLength: 2000, description: 1–2,000 chars after trim. }
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        traceId: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+  responses:
+    ValidationFailed:
+      description: Input failed validation (including unknown acting user); nothing was changed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Unauthorized:
+      description: Missing or invalid X-Api-Key.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Forbidden:
+      description: Acting user is not the comment's author.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    NotFound:
+      description: Task or comment does not exist.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    UnknownReference:
+      description: projectId or assigneeUserId does not refer to an existing project or user.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    CommentDeleted:
+      description: The comment has already been deleted and cannot be changed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    TooManyRequests:
+      description: Rate limit exceeded.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
