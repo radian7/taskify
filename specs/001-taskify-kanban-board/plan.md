@@ -87,7 +87,7 @@ criteria.
 | Principle / Section | Requirement | Plan compliance | Status |
 |---|---|---|---|
 | I. Security-First | Threat assessment in the plan | See "Threat assessment" below | ✅ |
-| I. Security-First | Threat assessment in the **spec** | spec.md has no threat assessment section (finding C1). The plan cannot satisfy this for the spec | ❌ Open: spec edit required |
+| I. Security-First | Threat assessment in the **spec** | spec.md "Security & Threat Assessment" covers authentication, authorization, data exposure and abuse, plus residual risk | ✅ |
 | I. Security-First | Least privilege | One DB user per service with access to its own database only; Tasks DB user cannot UPDATE or DELETE status history; each service accepts only the keys in the R8 key matrix, and only for the routes listed there | ✅ |
 | I. Security-First | No secrets in source | Four API keys and the Postgres password are Aspire secret parameters (user secrets locally, secret store when deployed); the dev Postgres TLS key is generated at startup and never stored | ✅ |
 | I. Security-First | TLS everywhere | `https://` service URIs only (never `https+http://`); APIs have no HTTP listener; hub over WSS; Npgsql `SSL Mode=Require` (dev) or `VerifyFull` (deployed); HSTS on Web (R16) | ✅ |
@@ -114,10 +114,9 @@ criteria.
 | Security Req. | Accepted risks documented with an owner and review date | D1 and D2 each have an owner, review date and expiry (Complexity Tracking) | ✅ |
 | Quality Gates | Review, tests, security, docs, contract compatibility | Listed in the CI pipeline (R12); contract tests in the integration project | ✅ |
 
-**Gate result (pre-research)**: The plan passes, with two justified, time-limited deviations (D1
-and D2) that have owners and review dates. **One open item is outside the plan**: the spec still
-needs its own threat assessment section (Principle I). `/speckit-tasks` should not run until it
-is added. A short section summarizing the threat table below meets the requirement.
+**Gate result (pre-research)**: PASS, with two justified, time-limited deviations (D1 and D2)
+that have owners and review dates. The spec now includes its own threat assessment
+(Principle I).
 
 **Gate result (post-design re-check)**: PASS for all design artifacts.
 - The new contracts (AsyncAPI, the 429 responses, the key matrix, the exempt user routes)
@@ -127,7 +126,7 @@ is added. A short section summarizing the threat table below meets the requireme
 - Status history is protected by database permissions, comment and notification ownership are
   enforced server-side, the event intake checks caller keys, and only the Web resource is
   reachable from outside.
-- The spec threat-assessment item above is still open.
+- The spec's threat assessment matches the plan's threat table.
 
 ### Threat assessment (phase 1)
 

@@ -347,6 +347,25 @@ no notification is created.
   recipient (a User), type (assigned, moved, or commented), task, project, acting user, summary,
   created time, read time (if read). Removed 30 days after creation.
 
+## Security & Threat Assessment *(required by the constitution, Principle I)*
+
+Phase 1 runs only on a trusted internal network (see Assumptions). The plan's threat table
+records the technical mitigations.
+
+| Area | Threat | Impact | How the requirements address it |
+|------|--------|--------|----------------------------------|
+| Authentication | Anyone who can reach Taskify can act as any of the five users, because there is no login | False authorship of tasks and comments; reading another user's notifications | **Accepted risk for phase 1 only**: internal network only, never exposed publicly. Every user selection, switch and change is audited with who, when and from where (FR-022, FR-032). Real sign-in replaces user selection in phase 2 |
+| Authorization | A user edits or deletes someone else's comment, or reads someone else's notifications | Tampering; privacy loss | Checked by the system on every request, not only in the UI (FR-017, FR-029). Status history can never be edited or deleted (FR-023) |
+| Data exposure | Comment text, descriptions or other content leak through logs or error messages | Disclosure of work content | Logs never contain comment or description text (FR-022). Error messages reveal no internal details (FR-019). Deleted comment text is removed permanently (FR-024) |
+| Data exposure | Content is read or altered while travelling inside the network | Disclosure or tampering | All traffic between users, services and stored data is encrypted in transit (constitution Principle I) |
+| Abuse | Malicious markup or script in titles, descriptions, comments or notifications | Code runs in other users' browsers | All user text is shown as plain text and never executed (FR-020, SC-006) |
+| Abuse | Invalid, oversized or unknown values (users, columns, projects) | Corrupted data, crashes | Every input is checked against explicit limits and allowed values, and invalid input is rejected whole with no change (FR-019, FR-021, SC-005) |
+| Abuse | Flooding the system with requests | Slowdown for the team | Per-user limits of 60 changes and 300 reads per minute; rejections are audited (FR-031, SC-010) |
+
+**Residual risk**: impersonation between the five users stays possible until phase 2 adds
+sign-in. The audit trail makes it detectable but does not prevent it. The project maintainer
+owns this risk and reviews it each quarter (see the plan's Complexity Tracking, deviation D1).
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
