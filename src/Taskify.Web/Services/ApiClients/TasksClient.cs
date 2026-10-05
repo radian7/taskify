@@ -55,4 +55,36 @@ public sealed class TasksClient(HttpClient http, CircuitIdentity identity) : Api
     public Task<ApiResult<TaskDetailDto>> UpdateTaskAsync(
         Guid taskId, string title, string? description, Guid? assigneeUserId, CancellationToken cancellationToken = default) =>
         SendAsync<TaskDetailDto>(HttpMethod.Put, $"/api/tasks/{taskId:D}", new UpdateTaskBody(title, assigneeUserId, description), cancellationToken: cancellationToken);
+
+    /// <summary>Gets a task's comments, oldest first (spec FR-015).</summary>
+    /// <param name="taskId">The task.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The comments, or the error.</returns>
+    public Task<ApiResult<List<CommentDto>>> GetCommentsAsync(Guid taskId, CancellationToken cancellationToken = default) =>
+        GetAsync<List<CommentDto>>($"/api/tasks/{taskId:D}/comments", cancellationToken: cancellationToken);
+
+    /// <summary>Adds a comment as the acting user.</summary>
+    /// <param name="taskId">The task.</param>
+    /// <param name="text">The text (1–2,000 characters).</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The new comment, or the error.</returns>
+    public Task<ApiResult<CommentDto>> AddCommentAsync(Guid taskId, string text, CancellationToken cancellationToken = default) =>
+        SendAsync<CommentDto>(HttpMethod.Post, $"/api/tasks/{taskId:D}/comments", new CommentTextBody(text), cancellationToken: cancellationToken);
+
+    /// <summary>Edits the acting user's own comment (spec FR-016).</summary>
+    /// <param name="taskId">The task.</param>
+    /// <param name="commentId">The comment.</param>
+    /// <param name="text">The new text (1–2,000 characters).</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The comment after the edit, or the error.</returns>
+    public Task<ApiResult<CommentDto>> EditCommentAsync(Guid taskId, Guid commentId, string text, CancellationToken cancellationToken = default) =>
+        SendAsync<CommentDto>(HttpMethod.Put, $"/api/tasks/{taskId:D}/comments/{commentId:D}", new CommentTextBody(text), cancellationToken: cancellationToken);
+
+    /// <summary>Deletes the acting user's own comment (spec FR-024).</summary>
+    /// <param name="taskId">The task.</param>
+    /// <param name="commentId">The comment.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The deleted comment (as a placeholder), or the error.</returns>
+    public Task<ApiResult<CommentDto>> DeleteCommentAsync(Guid taskId, Guid commentId, CancellationToken cancellationToken = default) =>
+        SendAsync<CommentDto>(HttpMethod.Delete, $"/api/tasks/{taskId:D}/comments/{commentId:D}", body: null, cancellationToken: cancellationToken);
 }

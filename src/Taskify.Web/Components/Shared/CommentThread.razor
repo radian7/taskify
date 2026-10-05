@@ -1,0 +1,195 @@
+@using Taskify.Security.Users
+@inject TasksClient TasksApi
+
+@* A task's comments, oldest first (spec FR-015, FR-016, FR-024). Only the author sees Edit and Delete on a comment
+   that is not deleted; the API enforces this too. All text is rendered through normal Razor binding, which
+   HTML-encodes it (spec FR-020). Never use MarkupString here. *@
+<section class="comment-thread" aria-labelledby="comments-heading">
+    <h2 id="comments-heading">Comments</h2>
+    <ErrorBanner Error="error" />
+
+    @if (comments.Count == 0)
+    {
+        <p class="empty-state">No comments yet.</p>
+    }
+    else
+    {
+        <ol class="comment-list">
+            @foreach (var comment in comments.OrderBy(c => c.CreatedAt))
+            {
+                <li class="comment @(comment.IsDeleted ? "comment--deleted" : null)" data-comment-id="@comment.Id">
+                    @if (comment.IsDeleted)
+                    {
+                        <p class="comment-deleted">
+                            Comment deleted by @NameOf(comment.AuthorUserId)
+                            @if (comment.DeletedAt is { } deletedAt)
+                            {
+                                <time datetime="@deletedAt.UtcDateTime.ToString("O")">@UiText.Date(deletedAt)</time>
+                            }
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="comment-meta">
+                            <strong class="comment-author">@NameOf(comment.AuthorUserId)</strong>
+                            <time datetime="@comment.CreatedAt.UtcDateTime.ToString("O")">@UiText.Date(comment.CreatedAt)</time>
+                            @if (comment.EditedAt is not null)
+                            {
+                                <span class="comment-edited">edited</span>
+                            }
+                        </p>
+                        @if (editingId == comment.Id)
+                        {
+                            <form class="comment-edit" @onsubmit="SaveEditAsync" @onsubmit:preventDefault>
+                                <textarea class="comment-edit-text" rows="3" aria-label="Edit comment" @bind="editText" @bind:event="oninput"></textarea>
+                                <CharacterCounter Text="@editText" Max="TextLimit" />
+                                <button type="submit" disabled="@busy">Save</button>
+                                <button type="button" class="secondary" @onclick="CancelEdit">Cancel</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <p class="comment-text">@comment.Text</p>
+                            @if (comment.AuthorUserId == CurrentUserId)
+                            {
+                                <p class="comment-actions">
+                                    <button type="button" class="comment-edit-button" @onclick="() => StartEdit(comment)">Edit</button>
+                                    <button type="button" class="comment-delete-button" @onclick="() => DeleteAsync(comment)" disabled="@busy">Delete</button>
+                                </p>
+                            }
+                        }
+                    }
+                </li>
+            }
+        </ol>
+    }
+
+    <form class="comment-add" @onsubmit="AddAsync" @onsubmit:preventDefault>
+        <label for="new-comment">Add a comment</label>
+        <textarea id="new-comment" rows="3" @bind="newText" @bind:event="oninput"></textarea>
+        <CharacterCounter Text="@newText" Max="TextLimit" />
+        <button type="submit" disabled="@busy">Add comment</button>
+    </form>
+</section>
+
+@code {
+    private const int TextLimit = 2000;
+
+    private List<CommentDto> comments = [];
+    private string newText = string.Empty;
+    private string editText = string.Empty;
+    private Guid? editingId;
+    private ApiError? error;
+    private bool busy;
+    private Guid loadedFor;
+
+    /// <summary>The task whose comments are shown.</summary>
+    [Parameter, EditorRequired]
+    public Guid TaskId { get; set; }
+
+    /// <summary>The selected user; only their own comments get Edit and Delete.</summary>
+    [Parameter, EditorRequired]
+    public Guid CurrentUserId { get; set; }
+
+    /// <summary>The five users, by ID, to show names.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyDictionary<Guid, UserInfo> Users { get; set; } = new Dictionary<Guid, UserInfo>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (loadedFor == TaskId)
+        {
+            return;   // re-renders of the parent must not throw away what the user is typing
+        }
+
+        loadedFor = TaskId;
+        var result = await TasksApi.GetCommentsAsync(TaskId);
+        if (result.IsSuccess)
+        {
+            comments = result.Value!;
+        }
+        else
+        {
+            error = result.Error;
+        }
+    }
+
+    private Task AddAsync() => RunAsync(async () =>
+    {
+        var result = await TasksApi.AddCommentAsync(TaskId, newText);
+        if (result.IsSuccess)
+        {
+            comments.Add(result.Value!);
+            newText = string.Empty;
+        }
+
+        return result.Error;
+    });
+
+    private void StartEdit(CommentDto comment)
+    {
+        editingId = comment.Id;
+        editText = comment.Text ?? string.Empty;
+        error = null;
+    }
+
+    private void CancelEdit() => editingId = null;
+
+    private Task SaveEditAsync() => RunAsync(async () =>
+    {
+        if (editingId is not { } id)
+        {
+            return null;
+        }
+
+        var result = await TasksApi.EditCommentAsync(TaskId, id, editText);
+        if (result.IsSuccess)
+        {
+            Replace(result.Value!);
+            editingId = null;
+        }
+
+        return result.Error;
+    });
+
+    private Task DeleteAsync(CommentDto comment) => RunAsync(async () =>
+    {
+        var result = await TasksApi.DeleteCommentAsync(TaskId, comment.Id);
+        if (result.IsSuccess)
+        {
+            Replace(result.Value!);
+        }
+
+        return result.Error;
+    });
+
+    private async Task RunAsync(Func<Task<ApiError?>> action)
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        busy = true;
+        error = null;
+        try
+        {
+            error = await action();   // on failure nothing changed; the user fixes the input and tries again
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void Replace(CommentDto updated)
+    {
+        var index = comments.FindIndex(c => c.Id == updated.Id);
+        if (index >= 0)
+        {
+            comments[index] = updated;
+        }
+    }
+
+    private string NameOf(Guid userId) => Users.TryGetValue(userId, out var user) ? user.DisplayName : "Someone";
+}

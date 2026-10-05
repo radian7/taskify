@@ -54,6 +54,8 @@ else
             <p class="task-description">@task.Description</p>
         }
 
+        <CommentThread TaskId="TaskId" CurrentUserId="CurrentUser.Current!.Id" Users="users" />
+
         <StatusHistory Items="history" Users="users" />
     }
 }

@@ -88,3 +88,26 @@ public sealed record CreateTaskBody(Guid ProjectId, string Title, string? Descri
 /// <param name="AssigneeUserId">The assignee, or <see langword="null"/> to unassign.</param>
 /// <param name="Description">The description: up to 5,000 characters after trimming, or <see langword="null"/>.</param>
 public sealed record UpdateTaskBody(string Title, Guid? AssigneeUserId, string? Description);
+
+/// <summary>A comment on a task (contracts/tasks-api.yaml, schema <c>Comment</c>).</summary>
+/// <param name="Id">The comment ID.</param>
+/// <param name="TaskId">The task it belongs to.</param>
+/// <param name="AuthorUserId">Who wrote it.</param>
+/// <param name="Text">The text, or <see langword="null"/> when it was deleted.</param>
+/// <param name="CreatedAt">When it was posted.</param>
+/// <param name="EditedAt">When it was last edited, or <see langword="null"/>.</param>
+/// <param name="DeletedAt">When it was deleted, or <see langword="null"/>.</param>
+/// <param name="IsDeleted">Whether it was deleted; a deleted comment shows as a placeholder.</param>
+public sealed record CommentDto(
+    Guid Id,
+    Guid TaskId,
+    Guid AuthorUserId,
+    string? Text,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? EditedAt,
+    DateTimeOffset? DeletedAt,
+    bool IsDeleted);
+
+/// <summary>The body of an add or edit comment request (contracts/tasks-api.yaml, schema <c>CommentRequest</c>).</summary>
+/// <param name="Text">The text: 1–2,000 characters after trimming.</param>
+public sealed record CommentTextBody(string Text);

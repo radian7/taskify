@@ -12,6 +12,10 @@
         @* A text label as well as colour, so the highlight does not rely on colour alone. *@
         <span class="mine-label">Assigned to you</span>
     }
+    @if (Item.CommentCount > 0)
+    {
+        <p class="task-comments">@Item.CommentCount @(Item.CommentCount == 1 ? "comment" : "comments")</p>
+    }
     <MoveToMenu Current="Item.Status" TaskTitle="@Item.Title" OnMove="OnMove" />
 </article>
 

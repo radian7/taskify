@@ -394,7 +394,7 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
   - commenting on a Done task is allowed;
   - after delete, the comment text is gone from the database row and from the outbox payload;
   - `commentCount` on `TaskSummary` excludes deleted comments.
-- [ ] T103 [P] [US4] bUnit tests for `CommentThread` in `tests/Taskify.Web.Tests/Comments/CommentThreadTests.cs`:
+- [X] T103 [P] [US4] bUnit tests for `CommentThread` in `tests/Taskify.Web.Tests/Comments/CommentThreadTests.cs`:
   - author name and time shown, oldest first;
   - an "edited" indicator;
   - the placeholder "Comment deleted by Priya Patel" with the deletion time;
@@ -412,13 +412,13 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
   - `PUT /api/tasks/{taskId}/comments/{commentId}` (`.RequireWrites()`): `403` for a non-author, `409` when deleted. Outbox `CommentEdited`.
   - `DELETE /api/tasks/{taskId}/comments/{commentId}` (`.RequireWrites()`): `403` and `409` as above. Sets the text to null and returns the placeholder `Comment`. Outbox `CommentDeleted`.
   Audit every change and every `403` (IDs only, never the text) (depends on T104–T106)
-- [ ] T108 [US4] Create the `CommentThread.razor` component in `src/Taskify.Web/Components/Shared/CommentThread.razor`:
+- [X] T108 [US4] Create the `CommentThread.razor` component in `src/Taskify.Web/Components/Shared/CommentThread.razor`:
   - lists comments oldest first with the author display name and posted time, plus "edited" when `editedAt` is set;
   - shows deleted comments as "Comment deleted by {author}" with the `deletedAt` time;
   - an add-comment box with a `CharacterCounter` of 2,000 and server errors shown;
   - Edit and Delete buttons only when `authorUserId` is the current user and the comment is not deleted.
   Add the thread to `src/Taskify.Web/Components/Pages/TaskDetails.razor`
-- [ ] T109 [US4] Show the comment count on `src/Taskify.Web/Components/Board/TaskCard.razor` when `commentCount > 0`
+- [X] T109 [US4] Show the comment count on `src/Taskify.Web/Components/Board/TaskCard.razor` when `commentCount > 0`
 
 **Checkpoint**: The four core user stories (US1–US4) work, and each can be tested on its own.
 
