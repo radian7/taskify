@@ -1,0 +1,71 @@
+@using Taskify.Security.Validation
+@inject ProjectsClient ProjectsApi
+
+@* Create a project (spec FR-006). The character counters use the same code as the API (spec FR-019), but only the API
+   decides: invalid input is rejected whole and the reasons are shown below. All text is rendered as plain text. *@
+<form class="entity-form" @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+    <h2>New project</h2>
+    <ErrorBanner Error="error" />
+
+    <div class="field">
+        <label for="project-name">Name</label>
+        <input id="project-name" type="text" @bind="name" @bind:event="oninput" autocomplete="off" />
+        <CharacterCounter Text="@name" Max="NameLimit" />
+    </div>
+
+    <div class="field">
+        <label for="project-description">Description (optional)</label>
+        <textarea id="project-description" rows="3" @bind="description" @bind:event="oninput"></textarea>
+        <CharacterCounter Text="@description" Max="DescriptionLimit" />
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" disabled="@busy">Create project</button>
+        <button type="button" class="secondary" @onclick="OnCancel">Cancel</button>
+    </div>
+</form>
+
+@code {
+    private const int NameLimit = 100;
+    private const int DescriptionLimit = 1000;
+
+    private string name = string.Empty;
+    private string description = string.Empty;
+    private ApiError? error;
+    private bool busy;
+
+    /// <summary>Raised with the new project after it was created.</summary>
+    [Parameter]
+    public EventCallback<ProjectDto> OnCreated { get; set; }
+
+    /// <summary>Raised when the user gives up.</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        busy = true;
+        error = null;
+        try
+        {
+            var result = await ProjectsApi.CreateProjectAsync(name, description);
+            if (result.IsSuccess)
+            {
+                await OnCreated.InvokeAsync(result.Value!);
+            }
+            else
+            {
+                error = result.Error;   // nothing was saved; the user fixes the input and tries again
+            }
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

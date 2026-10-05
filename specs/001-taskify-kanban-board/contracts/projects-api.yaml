@@ -144,7 +144,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string, minLength: 1, maxLength: 1600, description: 1–100 user-perceived characters. }
-        description: { type: [string, 'null'], maxLength: 16000, description: Up to 1,000 user-perceived characters. }
+        description: { type: [string, 'null'], maxLength: 16000, description: 'Up to 1,000 user-perceived characters.' }
         createdByUserId: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
     CreateProjectRequest:

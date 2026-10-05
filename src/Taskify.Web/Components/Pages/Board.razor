@@ -1,0 +1,165 @@
+@page "/projects/{ProjectId:guid}"
+@using Taskify.Security.Users
+@inject ProjectsClient ProjectsApi
+@inject TasksClient TasksApi
+@inject CurrentUserService CurrentUser
+
+<PageTitle>@(project?.Name ?? "Board") - Taskify</PageTitle>
+
+@if (notFound)
+{
+    <h1>Project not found</h1>
+    <p>That project does not exist, or it is no longer available.</p>
+    <p><a href="/projects">Back to the project list</a></p>
+}
+else
+{
+    <ErrorBanner Error="error" />
+    <ErrorBanner Error="moveError" />
+
+    @if (project is not null && tasks is not null)
+    {
+        <h1>@project.Name</h1>
+        @if (!string.IsNullOrWhiteSpace(project.Description))
+        {
+            <p class="project-description">@project.Description</p>
+        }
+
+        @if (tasks.Count == 0)
+        {
+            <p class="empty-state">This project has no tasks yet. Add the first task to get started.</p>
+        }
+
+        @if (adding)
+        {
+            <TaskForm ProjectId="ProjectId" Users="users.Values.ToList()" OnSaved="OnTaskAdded" OnCancel="() => adding = false" />
+        }
+        else
+        {
+            <p><button type="button" class="add-task" @onclick="() => adding = true">Add task</button></p>
+        }
+
+        <div class="board">
+            @foreach (var status in UiText.Columns)
+            {
+                <BoardColumn Status="status"
+                             Items="@tasks.Where(t => t.Status == status).ToList()"
+                             Users="users"
+                             CurrentUserId="CurrentUser.Current?.Id"
+                             OnDragStarted="OnDragStarted"
+                             OnDropped="OnDroppedAsync"
+                             OnMoveRequested="OnMoveRequestedAsync" />
+            }
+        </div>
+    }
+}
+
+@code {
+    /// <summary>The project to show, from the route.</summary>
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    private ProjectDto? project;
+    private List<TaskSummaryDto>? tasks;
+    private IReadOnlyDictionary<Guid, UserInfo> users = new Dictionary<Guid, UserInfo>();
+    private ApiError? error;
+    private ApiError? moveError;
+    private Guid? draggedTaskId;
+    private bool adding;
+    private bool notFound;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CurrentUser.InitializeAsync();
+        if (CurrentUser.Current is null)
+        {
+            return; // the layout sends the browser back to the selection screen
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null;
+        notFound = false;
+
+        var projectResult = await ProjectsApi.GetProjectAsync(ProjectId);
+        if (projectResult.Error is { IsNotFound: true })
+        {
+            notFound = true;
+            return;
+        }
+
+        var usersResult = await ProjectsApi.GetUsersAsync();
+        var tasksResult = await TasksApi.ListTasksAsync(ProjectId);
+
+        // Show the first failure; the board is only drawn when everything it needs was loaded.
+        error = projectResult.Error ?? usersResult.Error ?? tasksResult.Error;
+        if (error is not null)
+        {
+            return;
+        }
+
+        project = projectResult.Value;
+        users = usersResult.Value!.ToDictionary(u => u.Id);
+        tasks = tasksResult.Value;
+    }
+
+    // A task created here starts in To Do (spec FR-009) and shows on the board at once.
+    private void OnTaskAdded(TaskDetailDto created)
+    {
+        tasks?.Add(new TaskSummaryDto(created.Id, created.ProjectId, created.Title, created.Status, created.AssigneeUserId, created.CommentCount, created.CreatedAt, created.UpdatedAt));
+        adding = false;
+    }
+
+    private void OnDragStarted(Guid taskId) => draggedTaskId = taskId;
+
+    // A card was dropped on a column: move the card that is being dragged (spec FR-012).
+    private async Task OnDroppedAsync(TaskStatus to)
+    {
+        if (draggedTaskId is not { } taskId)
+        {
+            return;
+        }
+
+        draggedTaskId = null;
+        await MoveAsync(taskId, to);
+    }
+
+    private Task OnMoveRequestedAsync((Guid TaskId, TaskStatus To) request) => MoveAsync(request.TaskId, request.To);
+
+    /// <summary>
+    /// Moves a card at once and then asks the API. If the API refuses, the card snaps back and the reason is shown
+    /// (plan research R6). A move to the column the task is already in does nothing and sends nothing.
+    /// </summary>
+    private async Task MoveAsync(Guid taskId, TaskStatus to)
+    {
+        var index = tasks?.FindIndex(t => t.Id == taskId) ?? -1;
+        if (tasks is null || index < 0 || tasks[index].Status == to)
+        {
+            return;
+        }
+
+        moveError = null;
+        var original = tasks[index];
+        tasks[index] = original with { Status = to };   // optimistic: the card moves straight away
+
+        var result = await TasksApi.MoveAsync(taskId, to);
+        var current = tasks.FindIndex(t => t.Id == taskId);
+        if (current < 0)
+        {
+            return;
+        }
+
+        if (result.IsSuccess)
+        {
+            tasks[current] = tasks[current] with { UpdatedAt = result.Value!.Task.UpdatedAt };
+        }
+        else
+        {
+            tasks[current] = original;                   // snap back
+            moveError = result.Error;
+        }
+    }
+}

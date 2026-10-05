@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Taskify.Contracts\Taskify.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Security\Taskify.Security.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Projects.Api\Taskify.Projects.Api.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Tasks.Api\Taskify.Tasks.Api.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Notifications.Api\Taskify.Notifications.Api.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Web\Taskify.Web.csproj" />
+  </ItemGroup>
+
+</Project>

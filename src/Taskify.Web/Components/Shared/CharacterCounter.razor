@@ -1,0 +1,19 @@
+@using Taskify.Security.Validation
+
+@* Shows "n / max" next to a text input. It counts with the same code the APIs use (TextLength, spec FR-019), on the
+   trimmed text, so what the user sees is what the server enforces. The APIs remain the authority. *@
+<span class="char-counter @(IsOver ? "char-counter--over" : null)" aria-live="polite">@Count / @Max</span>
+
+@code {
+    /// <summary>The text typed so far.</summary>
+    [Parameter]
+    public string? Text { get; set; }
+
+    /// <summary>The most characters allowed.</summary>
+    [Parameter, EditorRequired]
+    public int Max { get; set; }
+
+    private int Count => TextLength.Count(InputNormalizer.Trim(Text));
+
+    private bool IsOver => Count > Max || TextLength.ExceedsGuard(InputNormalizer.Trim(Text), Max);
+}

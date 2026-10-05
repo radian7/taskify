@@ -1,0 +1,6 @@
+# Test-only analyzer relaxations (production code keeps the strict rules in the root .editorconfig).
+[*.cs]
+# Descriptive snake_case test names read like sentences in the test report.
+dotnet_diagnostic.CA1707.severity = none
+# Inline arrays in [InlineData] and similar test data are clearer than shared constants.
+dotnet_diagnostic.CA1861.severity = none

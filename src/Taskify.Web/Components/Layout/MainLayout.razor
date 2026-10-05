@@ -1,0 +1,42 @@
+@inherits LayoutComponentBase
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Navigation
+
+<div class="page">
+    <header class="app-header">
+        <a class="brand" href="/projects">Taskify</a>
+        <div class="header-user">
+            @if (CurrentUser.Current is { } user)
+            {
+                <span class="current-user">Acting as <strong>@user.DisplayName</strong></span>
+                @* "Switch user" goes to the selection screen without clearing the selection, so the next choice
+                   is audited with the previous user (spec FR-032). *@
+                <a class="switch-user" href="/">Switch user</a>
+            }
+        </div>
+    </header>
+    <main class="app-main">
+        @if (ready)
+        {
+            @Body
+        }
+    </main>
+</div>
+
+@code {
+    private bool ready;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CurrentUser.InitializeAsync();
+
+        if (CurrentUser.Current is null)
+        {
+            // Nobody is selected (or the cookie was rejected): go to the selection screen.
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        ready = true;
+    }
+}

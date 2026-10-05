@@ -1,0 +1,56 @@
+@* The keyboard-accessible way to move a card (research R6): the same action as dragging, for people who do not use a
+   mouse. A real <button> opens a menu of the other columns; Escape closes it. *@
+<div class="move-menu-wrapper">
+    <button type="button"
+            class="move-toggle secondary"
+            aria-haspopup="menu"
+            aria-expanded="@(open ? "true" : "false")"
+            aria-label="Move “@TaskTitle” to another column"
+            @onclick="Toggle">
+        Move to…
+    </button>
+    @if (open)
+    {
+        <ul class="move-menu" role="menu" @onkeydown="OnKeyDown">
+            @foreach (var column in UiText.Columns.Where(c => c != Current))
+            {
+                var target = column;
+                <li role="none">
+                    <button type="button" role="menuitem" @onclick="() => ChooseAsync(target)">@UiText.StatusLabel(target)</button>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private bool open;
+
+    /// <summary>The column the task is in now; it is left out of the menu.</summary>
+    [Parameter, EditorRequired]
+    public TaskStatus Current { get; set; }
+
+    /// <summary>The task's title, used in the button's accessible name.</summary>
+    [Parameter]
+    public string TaskTitle { get; set; } = string.Empty;
+
+    /// <summary>Raised with the chosen column.</summary>
+    [Parameter]
+    public EventCallback<TaskStatus> OnMove { get; set; }
+
+    private void Toggle() => open = !open;
+
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            open = false;
+        }
+    }
+
+    private async Task ChooseAsync(TaskStatus target)
+    {
+        open = false;
+        await OnMove.InvokeAsync(target);
+    }
+}

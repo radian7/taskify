@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Versioned message types and seed IDs only. No business logic (plan: Complexity Tracking). -->
+
+</Project>

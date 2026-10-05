@@ -262,13 +262,23 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     TaskDetail:
-      allOf:
-        - $ref: '#/components/schemas/TaskSummary'
-        - type: object
-          required: [createdByUserId]
-          properties:
-            description: { type: [string, 'null'], maxLength: 80000, description: Up to 5,000 user-perceived characters. }
-            createdByUserId: { type: string, format: uuid }
+      type: object
+      additionalProperties: false
+      description: >-
+        A task with its description and creator. Written out in full (not as allOf over TaskSummary) because
+        TaskSummary forbids additional properties, which would reject the extra fields.
+      required: [id, projectId, title, status, createdAt, updatedAt, commentCount, createdByUserId]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        title: { type: string, maxLength: 3200, description: 1–200 user-perceived characters. }
+        description: { type: [string, 'null'], maxLength: 80000, description: 'Up to 5,000 user-perceived characters.' }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        assigneeUserId: { type: [string, 'null'], format: uuid }
+        createdByUserId: { type: string, format: uuid }
+        commentCount: { type: integer, minimum: 0, description: Excludes deleted comments. }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     CreateTaskRequest:
       type: object
       additionalProperties: false
@@ -276,7 +286,7 @@ components:
       properties:
         projectId: { type: string, format: uuid }
         title: { type: string, maxLength: 3200, description: 1–200 user-perceived characters after trim. }
-        description: { type: [string, 'null'], maxLength: 80000, description: Up to 5,000 user-perceived characters after trim. }
+        description: { type: [string, 'null'], maxLength: 80000, description: 'Up to 5,000 user-perceived characters after trim.' }
         assigneeUserId: { type: [string, 'null'], format: uuid }
     UpdateTaskRequest:
       type: object
@@ -284,7 +294,7 @@ components:
       required: [title, assigneeUserId]
       properties:
         title: { type: string, maxLength: 3200, description: 1–200 user-perceived characters after trim. }
-        description: { type: [string, 'null'], maxLength: 80000, description: Up to 5,000 user-perceived characters after trim. }
+        description: { type: [string, 'null'], maxLength: 80000, description: 'Up to 5,000 user-perceived characters after trim.' }
         assigneeUserId:
           type: [string, 'null']
           format: uuid
@@ -338,7 +348,7 @@ components:
       additionalProperties: false
       required: [text]
       properties:
-        text: { type: string, maxLength: 32000, description: 1–2,000 user-perceived characters after trim. }
+        text: { type: string, maxLength: 32000, description: '1–2,000 user-perceived characters after trim.' }
     ProblemDetails:
       type: object
       properties:

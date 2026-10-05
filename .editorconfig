@@ -1,0 +1,30 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json,props,csproj,slnx,razor,md}]
+indent_size = 2
+
+[*.cs]
+# SQL built from user input is never allowed (Principle II: parameterized queries only).
+dotnet_diagnostic.CA2100.severity = error
+dotnet_diagnostic.CA3001.severity = error
+# Performance-only rule: Taskify logs a handful of events per request at 10 concurrent users, so the
+# readability of plain logger calls wins over LoggerMessage delegates. Content is never logged either way.
+dotnet_diagnostic.CA1848.severity = suggestion
+csharp_style_namespace_declarations = file_scoped:warning
+dotnet_style_qualification_for_field = false:suggestion
+csharp_using_directive_placement = outside_namespace:warning
+csharp_style_var_for_built_in_types = true:suggestion
+
+# EF Core generates these files. Raw-SQL steps (such as the REVOKE on status_changes) are added to a migration's Up
+# method and are reviewed like any other code, even though analyzers skip the folder.
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

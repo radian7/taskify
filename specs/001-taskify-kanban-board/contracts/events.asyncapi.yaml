@@ -103,7 +103,8 @@ operations:
     action: send
     title: Web server invokes hub methods to manage group membership
     description: |
-      Each message is one SignalR method invocation with a single argument. The connection is
+      Each message is one SignalR method invocation with a single positional argument (the payload is that
+      argument, a UUID string, not an object). The connection is
       automatically in group `projects`; Join*/Leave* add or remove it from `project:{id}`,
       `task:{id}` or `user:{id}`.
     channel: { $ref: '#/channels/boardHub' }
@@ -296,28 +297,20 @@ components:
       unevaluatedProperties: false
 
     HubEntityArgument:
-      type: object
-      additionalProperties: false
-      required: [id]
-      description: Argument of JoinProject/LeaveProject (projectId) and JoinTask/LeaveTask (taskId).
-      properties:
-        id:
-          type: string
-          format: uuid
-          not: { const: '00000000-0000-0000-0000-000000000000' }
-          description: Project or task ID; the empty GUID is rejected.
+      type: string
+      format: uuid
+      not: { const: '00000000-0000-0000-0000-000000000000' }
+      description: >-
+        The single positional argument (SignalR invocation argument 0) of JoinProject/LeaveProject (projectId)
+        and JoinTask/LeaveTask (taskId). The empty GUID is rejected.
 
     HubUserArgument:
-      type: object
-      additionalProperties: false
-      required: [id]
-      description: Argument of JoinUser/LeaveUser.
-      properties:
-        id:
-          type: string
-          format: uuid
-          not: { const: '00000000-0000-0000-0000-000000000000' }
-          description: Must be one of the five predefined users; any other ID is rejected.
+      type: string
+      format: uuid
+      not: { const: '00000000-0000-0000-0000-000000000000' }
+      description: >-
+        The single positional argument (SignalR invocation argument 0) of JoinUser/LeaveUser. It must be one of
+        the five predefined users; any other ID is rejected.
 
     BoardChangedPayload:
       type: object

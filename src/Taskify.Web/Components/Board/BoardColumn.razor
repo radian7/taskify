@@ -1,0 +1,60 @@
+@using Taskify.Security.Users
+
+@* One Kanban column (spec FR-008). Tasks are listed newest first (spec Assumptions). Cards can be dropped here. *@
+<section class="board-column"
+         aria-labelledby="@HeadingId"
+         data-status="@Status"
+         @ondrop="() => OnDropped.InvokeAsync(Status)">
+    <h2 id="@HeadingId">@UiText.StatusLabel(Status) <span class="column-count">@Items.Count</span></h2>
+    @if (Items.Count == 0)
+    {
+        <p class="empty-state">No tasks</p>
+    }
+    else
+    {
+        @foreach (var item in Items.OrderByDescending(t => t.CreatedAt))
+        {
+            var task = item;
+            <TaskCard Item="task"
+                      AssigneeName="@AssigneeNameOf(task)"
+                      IsMine="@(task.AssigneeUserId is { } assignee && assignee == CurrentUserId)"
+                      OnDragStart="OnDragStarted"
+                      OnMove="(TaskStatus to) => OnMoveRequested.InvokeAsync((task.Id, to))" />
+        }
+    }
+</section>
+
+@code {
+    /// <summary>The column this component shows.</summary>
+    [Parameter, EditorRequired]
+    public TaskStatus Status { get; set; }
+
+    /// <summary>The tasks in this column.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TaskSummaryDto> Items { get; set; } = [];
+
+    /// <summary>The five users, by ID, to show assignee names.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyDictionary<Guid, UserInfo> Users { get; set; } = new Dictionary<Guid, UserInfo>();
+
+    /// <summary>The selected user, whose tasks are highlighted.</summary>
+    [Parameter]
+    public Guid? CurrentUserId { get; set; }
+
+    /// <summary>Raised with the task's ID when a drag of one of this column's cards starts.</summary>
+    [Parameter]
+    public EventCallback<Guid> OnDragStarted { get; set; }
+
+    /// <summary>Raised with this column when a card is dropped on it.</summary>
+    [Parameter]
+    public EventCallback<TaskStatus> OnDropped { get; set; }
+
+    /// <summary>Raised with the task and target column when the keyboard menu of one of this column's cards is used.</summary>
+    [Parameter]
+    public EventCallback<(Guid TaskId, TaskStatus To)> OnMoveRequested { get; set; }
+
+    private string HeadingId => $"column-{Status}";
+
+    private string? AssigneeNameOf(TaskSummaryDto task) =>
+        task.AssigneeUserId is { } id && Users.TryGetValue(id, out var user) ? user.DisplayName : null;
+}

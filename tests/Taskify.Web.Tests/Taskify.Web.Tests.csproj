@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="bunit" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Taskify.Contracts\Taskify.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Security\Taskify.Security.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Web\Taskify.Web.csproj" />
+  </ItemGroup>
+
+</Project>

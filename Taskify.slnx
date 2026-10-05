@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Taskify.AppHost/Taskify.AppHost.csproj" />
+    <Project Path="src/Taskify.Contracts/Taskify.Contracts.csproj" />
+    <Project Path="src/Taskify.Notifications.Api/Taskify.Notifications.Api.csproj" />
+    <Project Path="src/Taskify.Projects.Api/Taskify.Projects.Api.csproj" />
+    <Project Path="src/Taskify.Security/Taskify.Security.csproj" />
+    <Project Path="src/Taskify.ServiceDefaults/Taskify.ServiceDefaults.csproj" />
+    <Project Path="src/Taskify.Tasks.Api/Taskify.Tasks.Api.csproj" />
+    <Project Path="src/Taskify.Web/Taskify.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Taskify.E2ETests/Taskify.E2ETests.csproj" />
+    <Project Path="tests/Taskify.IntegrationTests/Taskify.IntegrationTests.csproj" />
+    <Project Path="tests/Taskify.TestSupport/Taskify.TestSupport.csproj" />
+    <Project Path="tests/Taskify.UnitTests/Taskify.UnitTests.csproj" />
+    <Project Path="tests/Taskify.Web.Tests/Taskify.Web.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,31 @@
+@using Taskify.Security.Users
+
+@* Choose an assignee: any of the five predefined users, or nobody (spec FR-010, FR-011). *@
+<select id="@Id" @onchange="OnChangedAsync" aria-label="Assignee">
+    <option value="" selected="@(Value is null)">Unassigned</option>
+    @foreach (var user in Users)
+    {
+        <option value="@user.Id" selected="@(Value == user.Id)">@user.DisplayName</option>
+    }
+</select>
+
+@code {
+    /// <summary>The element ID, so a label can point at it.</summary>
+    [Parameter]
+    public string Id { get; set; } = "assignee";
+
+    /// <summary>The five users to choose from.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<UserInfo> Users { get; set; } = [];
+
+    /// <summary>The chosen user, or null for unassigned.</summary>
+    [Parameter]
+    public Guid? Value { get; set; }
+
+    /// <summary>Raised when the choice changes.</summary>
+    [Parameter]
+    public EventCallback<Guid?> ValueChanged { get; set; }
+
+    private Task OnChangedAsync(ChangeEventArgs args) =>
+        ValueChanged.InvokeAsync(Guid.TryParse(args.Value?.ToString(), out var id) ? id : null);
+}

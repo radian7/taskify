@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="app.css" />
+    <HeadOutlet @rendermode="RenderModeForPage" />
+</head>
+<body>
+    <Routes @rendermode="RenderModeForPage" />
+    <script src="js/board-dnd.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+</body>
+</html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    // Pages marked [ExcludeFromInteractiveRouting] (the user selection screen) are plain server-rendered forms,
+    // because they set an HttpOnly cookie, which only an HTTP response can do. Everything else is interactive.
+    // Prerendering is off so a page loads its data once, over the circuit, and is audited once.
+    private static readonly IComponentRenderMode InteractiveWithoutPrerender = new InteractiveServerRenderMode(prerender: false);
+
+    private IComponentRenderMode? RenderModeForPage =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveWithoutPrerender : null;
+}

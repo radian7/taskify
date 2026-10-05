@@ -1,0 +1,109 @@
+name: CI
+
+# Quality gates from the constitution (Development Workflow & Quality Gates) and research R12:
+# build with docs enforced, tests, SAST, dependency scan, secret scan, contract checks.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  CONTRACTS_DIR: specs/001-taskify-kanban-board/contracts
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Trust the ASP.NET Core dev certificate (HTTPS-only service traffic, R16)
+        run: dotnet dev-certs https --trust || true
+
+      - name: Restore
+        run: dotnet restore Taskify.slnx
+
+      - name: Build (warnings are errors; missing XML docs fail the build, Principle IV)
+        run: dotnet build Taskify.slnx --no-restore -warnaserror
+
+      - name: Unit tests
+        run: dotnet test tests/Taskify.UnitTests --no-build
+
+      - name: Component tests
+        run: dotnet test tests/Taskify.Web.Tests --no-build
+
+      - name: Integration and contract tests (starts the AppHost and PostgreSQL in Docker)
+        run: dotnet test tests/Taskify.IntegrationTests --no-build
+
+      - name: Generate OpenAPI documents and compare with the committed contracts (R12)
+        run: ./.github/scripts/check-openapi-drift.sh
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Fail on vulnerable packages (any severity is reported; high and critical fail)
+        run: |
+          dotnet restore Taskify.slnx
+          dotnet list Taskify.slnx package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+          if grep -Eq "(High|Critical)" vulnerable.txt; then
+            echo "High or critical vulnerable packages found"
+            exit 1
+          fi
+
+  codeql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+      - run: dotnet build Taskify.slnx
+      - uses: github/codeql-action/analyze@v3
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  contracts-and-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate the AsyncAPI message contract (R15)
+        run: npx --yes @asyncapi/cli validate "$CONTRACTS_DIR/events.asyncapi.yaml"
+
+      - name: Ban MarkupString in the Web app (R9)
+        # A line may opt out with a trailing "// markup-allowed: <reason>" comment, which a
+        # reviewer must approve. User-entered text must never be rendered as raw markup.
+        run: |
+          if grep -rn "MarkupString" src/Taskify.Web --include=*.razor --include=*.cs | grep -v "markup-allowed:"; then
+            echo "MarkupString is banned for user content (research R9)"
+            exit 1
+          fi

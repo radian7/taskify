@@ -1,0 +1,37 @@
+@using Taskify.Security.Users
+
+@* A task's status history, newest first (spec FR-023): who moved it, from which column to which, and when.
+   Read-only. Names are rendered as plain text. *@
+<section class="status-history" aria-labelledby="history-heading">
+    <h2 id="history-heading">History</h2>
+    @if (Items.Count == 0)
+    {
+        <p class="empty-state">No moves yet.</p>
+    }
+    else
+    {
+        <ol>
+            @foreach (var change in Items.OrderByDescending(c => c.MovedAt))
+            {
+                <li>
+                    <strong>@NameOf(change.MovedByUserId)</strong> moved this from
+                    <span class="status-label">@UiText.StatusLabel(change.FromStatus)</span> to
+                    <span class="status-label">@UiText.StatusLabel(change.ToStatus)</span>
+                    <time datetime="@change.MovedAt.UtcDateTime.ToString("O")">@UiText.Date(change.MovedAt)</time>
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+@code {
+    /// <summary>The recorded moves.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<StatusChangeDto> Items { get; set; } = [];
+
+    /// <summary>The five users, by ID, to show names.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyDictionary<Guid, UserInfo> Users { get; set; } = new Dictionary<Guid, UserInfo>();
+
+    private string NameOf(Guid userId) => Users.TryGetValue(userId, out var user) ? user.DisplayName : "Someone";
+}

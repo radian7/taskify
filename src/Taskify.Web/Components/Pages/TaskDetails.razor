@@ -1,0 +1,117 @@
+@page "/projects/{ProjectId:guid}/tasks/{TaskId:guid}"
+@using Taskify.Security.Users
+@inject ProjectsClient ProjectsApi
+@inject TasksClient TasksApi
+@inject CurrentUserService CurrentUser
+
+<PageTitle>@(task?.Title ?? "Task") - Taskify</PageTitle>
+
+@if (notFound)
+{
+    <h1>Task not found</h1>
+    <p>That task does not exist, or it is no longer available.</p>
+    <p><a href="/projects/@ProjectId">Back to the board</a> · <a href="/projects">Project list</a></p>
+}
+else
+{
+    <ErrorBanner Error="error" />
+
+    @if (task is not null)
+    {
+        <p><a href="/projects/@ProjectId">← Back to the board</a></p>
+        <h1>@task.Title</h1>
+
+        @if (editing)
+        {
+            <TaskForm Existing="task" Users="users.Values.ToList()" OnSaved="OnSaved" OnCancel="() => editing = false" />
+        }
+        else
+        {
+            <p><button type="button" class="edit-task" @onclick="() => editing = true">Edit task</button></p>
+        }
+
+        <dl class="task-facts">
+            <dt>Column</dt>
+            <dd>@UiText.StatusLabel(task.Status)</dd>
+            <dt>Assignee</dt>
+            <dd>@NameOf(task.AssigneeUserId, "Unassigned")</dd>
+            <dt>Created by</dt>
+            <dd>@NameOf(task.CreatedByUserId, "Unknown user")</dd>
+            <dt>Created</dt>
+            <dd>@UiText.Date(task.CreatedAt)</dd>
+            <dt>Last changed</dt>
+            <dd>@UiText.Date(task.UpdatedAt)</dd>
+        </dl>
+
+        <h2>Description</h2>
+        @if (string.IsNullOrWhiteSpace(task.Description))
+        {
+            <p class="empty-state">No description.</p>
+        }
+        else
+        {
+            @* Plain text only (spec FR-020); the class keeps the user's line breaks. *@
+            <p class="task-description">@task.Description</p>
+        }
+
+        <StatusHistory Items="history" Users="users" />
+    }
+}
+
+@code {
+    /// <summary>The task's project, from the route.</summary>
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    /// <summary>The task, from the route.</summary>
+    [Parameter]
+    public Guid TaskId { get; set; }
+
+    private TaskDetailDto? task;
+    private IReadOnlyList<StatusChangeDto> history = [];
+    private IReadOnlyDictionary<Guid, UserInfo> users = new Dictionary<Guid, UserInfo>();
+    private ApiError? error;
+    private bool notFound;
+    private bool editing;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CurrentUser.InitializeAsync();
+        if (CurrentUser.Current is null)
+        {
+            return; // the layout sends the browser back to the selection screen
+        }
+
+        error = null;
+        notFound = false;
+
+        var taskResult = await TasksApi.GetTaskAsync(TaskId);
+        if (taskResult.Error is { IsNotFound: true } || (taskResult.IsSuccess && taskResult.Value!.ProjectId != ProjectId))
+        {
+            // A task that exists but belongs to another project is not found at this address.
+            notFound = true;
+            return;
+        }
+
+        var usersResult = await ProjectsApi.GetUsersAsync();
+        var historyResult = await TasksApi.GetHistoryAsync(TaskId);
+        error = taskResult.Error ?? usersResult.Error ?? historyResult.Error;
+        if (error is not null)
+        {
+            return;
+        }
+
+        task = taskResult.Value;
+        users = usersResult.Value!.ToDictionary(u => u.Id);
+        history = historyResult.Value!;
+    }
+
+    private void OnSaved(TaskDetailDto saved)
+    {
+        task = saved;
+        editing = false;
+    }
+
+    private string NameOf(Guid? userId, string fallback) =>
+        userId is { } id && users.TryGetValue(id, out var user) ? user.DisplayName : fallback;
+}

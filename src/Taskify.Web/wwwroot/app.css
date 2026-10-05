@@ -1,0 +1,413 @@
+/* Taskify styles. No inline styles are used anywhere: the Content Security Policy allows 'self' only. */
+
+:root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --text: #1d2330;
+    --muted: #5b6577;
+    --border: #d5d9e2;
+    --accent: #2457d6;
+    --accent-contrast: #ffffff;
+    --mine: #e8f0ff;
+    --danger: #a4262c;
+    --danger-bg: #fdecea;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.45;
+}
+
+a {
+    color: var(--accent);
+}
+
+h1 {
+    font-size: 1.5rem;
+    margin: 0 0 1rem;
+}
+
+.page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    text-decoration: none;
+    color: var(--text);
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.app-main {
+    flex: 1;
+    padding: 1.5rem;
+}
+
+button,
+.button {
+    font: inherit;
+    cursor: pointer;
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-contrast);
+}
+
+button.secondary {
+    background: var(--surface);
+    color: var(--accent);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid #f2a900;
+    outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+    font: inherit;
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.field {
+    margin-bottom: 1rem;
+}
+
+.char-counter {
+    display: inline-block;
+    margin-top: 0.2rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.char-counter--over {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+.error-banner {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--danger);
+    border-radius: 6px;
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+.error-banner p {
+    margin: 0;
+    font-weight: 600;
+}
+
+.error-fields {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+}
+
+.empty-state {
+    color: var(--muted);
+}
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset: auto 0 0 0;
+    padding: 0.75rem 1.25rem;
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-top: 1px solid var(--danger);
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+/* ---- User selection ---- */
+.user-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
+    max-width: 52rem;
+}
+
+.user-form {
+    margin: 0;
+}
+
+.user-button {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0.9rem 1rem;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+.user-button:hover {
+    border-color: var(--accent);
+}
+
+.user-name {
+    font-weight: 700;
+}
+
+.user-role {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+/* ---- Project list ---- */
+.project-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+    max-width: 52rem;
+}
+
+.project-card {
+    padding: 0.9rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.project-name {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.project-meta {
+    margin-left: 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.project-description {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+}
+
+/* ---- Board ---- */
+.board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
+    gap: 1rem;
+    align-items: start;
+    overflow-x: auto;
+}
+
+.board-column {
+    background: #eceff4;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+    min-height: 8rem;
+}
+
+.board-column h2 {
+    margin: 0 0 0.6rem;
+    font-size: 1rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.column-count {
+    color: var(--muted);
+    font-weight: 400;
+}
+
+.task-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: 6px;
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.6rem;
+}
+
+.task-card h3 {
+    margin: 0;
+    font-size: 0.98rem;
+    overflow-wrap: anywhere;
+}
+
+.task-assignee {
+    margin: 0.2rem 0 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+/* The selected user's tasks: a heavier accent border and tint, plus the text label below (not colour alone). */
+.card--mine {
+    border-left-color: var(--accent);
+    background: var(--mine);
+}
+
+.mine-label {
+    display: inline-block;
+    margin-top: 0.35rem;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    border-radius: 999px;
+}
+
+/* ---- Task details ---- */
+.task-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.3rem 1.25rem;
+    margin: 0 0 1.5rem;
+}
+
+.task-facts dt {
+    font-weight: 700;
+}
+
+.task-facts dd {
+    margin: 0;
+}
+
+.task-description {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* ---- Moving cards ---- */
+.task-card[draggable="true"] {
+    cursor: grab;
+}
+
+.board-column.drop-target {
+    outline: 3px dashed var(--accent);
+    outline-offset: -3px;
+    background: #e3ebfb;
+}
+
+.move-menu-wrapper {
+    position: relative;
+    margin-top: 0.4rem;
+}
+
+.move-toggle {
+    padding: 0.2rem 0.55rem;
+    font-size: 0.85rem;
+}
+
+.move-menu {
+    list-style: none;
+    margin: 0.25rem 0 0;
+    padding: 0.25rem;
+    position: absolute;
+    z-index: 10;
+    min-width: 9rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.move-menu button {
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    color: var(--text);
+    border: none;
+    padding: 0.4rem 0.6rem;
+}
+
+.move-menu button:hover,
+.move-menu button:focus-visible {
+    background: var(--mine);
+}
+
+/* ---- Status history ---- */
+.status-history ol {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.status-history li {
+    margin-bottom: 0.4rem;
+}
+
+.status-history time {
+    color: var(--muted);
+    margin-left: 0.4rem;
+    font-size: 0.88rem;
+}
+
+/* ---- Forms ---- */
+.entity-form {
+    max-width: 40rem;
+    margin: 0 0 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.entity-form h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.15rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.6rem;
+}

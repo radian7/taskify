@@ -1,0 +1,38 @@
+@* One task on the board (spec FR-013, FR-014): title and assignee, with a clear marker on the selected user's tasks.
+   It can be dragged to another column, or moved with the keyboard menu (research R6).
+   Text is rendered through normal Razor binding, so it is HTML-encoded (spec FR-020). Never use MarkupString here. *@
+<article class="task-card @(IsMine ? "card--mine" : null)"
+         data-task-id="@Item.Id"
+         draggable="true"
+         @ondragstart="() => OnDragStart.InvokeAsync(Item.Id)">
+    <h3 class="task-title"><a href="@($"/projects/{Item.ProjectId}/tasks/{Item.Id}")">@Item.Title</a></h3>
+    <p class="task-assignee">@(AssigneeName ?? "Unassigned")</p>
+    @if (IsMine)
+    {
+        @* A text label as well as colour, so the highlight does not rely on colour alone. *@
+        <span class="mine-label">Assigned to you</span>
+    }
+    <MoveToMenu Current="Item.Status" TaskTitle="@Item.Title" OnMove="OnMove" />
+</article>
+
+@code {
+    /// <summary>The task to show.</summary>
+    [Parameter, EditorRequired]
+    public TaskSummaryDto Item { get; set; } = default!;
+
+    /// <summary>The assignee's name, or null when the task is unassigned.</summary>
+    [Parameter]
+    public string? AssigneeName { get; set; }
+
+    /// <summary>True when the task is assigned to the selected user.</summary>
+    [Parameter]
+    public bool IsMine { get; set; }
+
+    /// <summary>Raised with the task's ID when a drag of this card starts.</summary>
+    [Parameter]
+    public EventCallback<Guid> OnDragStart { get; set; }
+
+    /// <summary>Raised with the chosen column when the keyboard menu is used.</summary>
+    [Parameter]
+    public EventCallback<TaskStatus> OnMove { get; set; }
+}

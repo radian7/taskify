@@ -1,0 +1,87 @@
+@page "/projects"
+@using System.Globalization
+@using Taskify.Security.Validation
+@inject ProjectsClient ProjectsApi
+@inject CurrentUserService CurrentUser
+
+<PageTitle>Projects - Taskify</PageTitle>
+
+<h1>Projects</h1>
+
+<ErrorBanner Error="error" />
+
+@if (creating)
+{
+    <CreateProjectForm OnCreated="OnCreatedAsync" OnCancel="() => creating = false" />
+}
+else
+{
+    <p><button type="button" @onclick="() => creating = true">New project</button></p>
+}
+
+@if (projects is not null)
+{
+    @if (projects.Count == 0)
+    {
+        <p class="empty-state">There are no projects yet.</p>
+    }
+    else
+    {
+        <ul class="project-list">
+            @foreach (var project in projects)
+            {
+                <li class="project-card">
+                    <a class="project-name" href="/projects/@project.Id">@project.Name</a>
+                    @* Two projects may share a name; the creation time tells them apart (spec Edge Cases). *@
+                    <span class="project-meta">created @UiText.Date(project.CreatedAt)</span>
+                    @if (!string.IsNullOrWhiteSpace(project.Description))
+                    {
+                        <p class="project-description">@Excerpt(project.Description)</p>
+                    }
+                </li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    private const int ExcerptLength = 140;
+
+    private List<ProjectDto>? projects;
+    private ApiError? error;
+    private bool creating;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CurrentUser.InitializeAsync();
+        if (CurrentUser.Current is null)
+        {
+            return; // the layout sends the browser back to the selection screen
+        }
+
+        var result = await ProjectsApi.ListProjectsAsync();
+        if (result.IsSuccess)
+        {
+            projects = result.Value;
+        }
+        else
+        {
+            error = result.Error;
+        }
+    }
+
+    // Shortened on a character boundary, so an emoji is never cut in half.
+    private static string Excerpt(string text)
+    {
+        var trimmed = text.Trim();
+        return TextLength.Count(trimmed) <= ExcerptLength ? trimmed : TextLength.Truncate(trimmed, ExcerptLength) + "…";
+    }
+
+    // The new project goes to the top of the list (newest first) and is visible to every user (spec FR-007).
+    private void OnCreatedAsync(ProjectDto project)
+    {
+        projects ??= [];
+        projects.Insert(0, project);
+        creating = false;
+    }
+}

@@ -1,0 +1,14 @@
+@using System.Net.Http
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Taskify.Contracts
+@* System.Threading.Tasks also defines a TaskStatus; this alias picks the Kanban column enum in Razor code. *@
+@using TaskStatus = Taskify.Contracts.TaskStatus
+@using Taskify.Web
+@using Taskify.Web.Components
+@using Taskify.Web.Components.Board
+@using Taskify.Web.Components.Shared
+@using Taskify.Web.Services
+@using Taskify.Web.Services.ApiClients

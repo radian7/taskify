@@ -1,0 +1,28 @@
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.log
+
+# Local configuration and secrets (Principle I: never commit secrets)
+appsettings.*.local.json
+*.pfx
+*.key
+*.pem
+secrets.json
+.env
+.env.*
+
+# IDE and OS
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
+# Playwright
+playwright-report/
+test-results/

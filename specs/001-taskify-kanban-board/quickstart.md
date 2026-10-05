@@ -16,16 +16,18 @@ This guide checks the feature end to end once it is implemented. API shapes are 
 
 ## Run
 
+Create the development secrets once per machine (API keys, the PostgreSQL password and the Data Protection
+certificate; nothing secret is committed to the repository). The script is safe to re-run and keeps existing values:
+
 ```powershell
 # from the repository root
+./scripts/init-dev-secrets.ps1     # stores the secrets in .NET user secrets
 dotnet restore
 aspire run          # or: dotnet run --project src/Taskify.AppHost
 ```
 
-On first run Aspire asks for the secret parameters (API keys, Postgres password) or reads them
-from user secrets. Open the Aspire dashboard URL shown in the console. Check that
-`postgres`, `projects-api`, `tasks-api`, `notifications-api`, and `web` are all **Running** and
-healthy, then open the `web` endpoint.
+Open the Aspire dashboard URL shown in the console. Check that `postgres`, `projects-api`, `tasks-api`,
+`notifications-api`, and `web` are all **Running** and healthy, then open the `web` endpoint.
 
 ## Seed data
 

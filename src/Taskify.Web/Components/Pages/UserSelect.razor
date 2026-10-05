@@ -1,0 +1,48 @@
+@page "/"
+@layout Layout.SimpleLayout
+@attribute [ExcludeFromInteractiveRouting]
+@inject ProjectsClient Projects
+
+<PageTitle>Choose a user - Taskify</PageTitle>
+
+@* Static server-rendered page (not interactive): each user is a small form that posts to /session/select, because only
+   an HTTP response can set the HttpOnly cookie that remembers the choice. No credentials are asked for in phase 1. *@
+<h1>Who are you?</h1>
+<p>Pick your name to get started.</p>
+
+<ErrorBanner Error="error" />
+
+@if (users is not null)
+{
+    <div class="user-list">
+        @foreach (var user in users)
+        {
+            <form method="post" action="/session/select" class="user-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="userId" value="@user.Id" />
+                <button type="submit" class="user-button">
+                    <span class="user-name">@user.DisplayName</span>
+                    <span class="user-role">@UiText.RoleLabel(user.Role)</span>
+                </button>
+            </form>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<Taskify.Security.Users.UserInfo>? users;
+    private ApiError? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Projects.GetUsersAsync();
+        if (result.IsSuccess)
+        {
+            users = result.Value;
+        }
+        else
+        {
+            error = result.Error;
+        }
+    }
+}

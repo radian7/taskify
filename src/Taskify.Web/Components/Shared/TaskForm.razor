@@ -1,0 +1,105 @@
+@using Taskify.Security.Users
+@inject TasksClient TasksApi
+
+@* Create or edit a task (spec FR-009 to FR-011). Creating needs a project; editing needs the task. The counters use the
+   same code as the API (spec FR-019), but only the API decides: invalid input is rejected whole and the reasons are
+   shown. A task in any column, including Done, is edited the same way. All text is rendered as plain text. *@
+<form class="entity-form" @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+    <h2>@(IsEdit ? "Edit task" : "New task")</h2>
+    <ErrorBanner Error="error" />
+
+    <div class="field">
+        <label for="task-title">Title</label>
+        <input id="task-title" type="text" @bind="title" @bind:event="oninput" autocomplete="off" />
+        <CharacterCounter Text="@title" Max="TitleLimit" />
+    </div>
+
+    <div class="field">
+        <label for="task-description">Description (optional)</label>
+        <textarea id="task-description" rows="5" @bind="description" @bind:event="oninput"></textarea>
+        <CharacterCounter Text="@description" Max="DescriptionLimit" />
+    </div>
+
+    <div class="field">
+        <label for="task-assignee">Assignee</label>
+        <AssigneePicker Id="task-assignee" Users="Users" @bind-Value="assignee" />
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" disabled="@busy">@(IsEdit ? "Save changes" : "Add task")</button>
+        <button type="button" class="secondary" @onclick="OnCancel">Cancel</button>
+    </div>
+</form>
+
+@code {
+    private const int TitleLimit = 200;
+    private const int DescriptionLimit = 5000;
+
+    private string title = string.Empty;
+    private string description = string.Empty;
+    private Guid? assignee;
+    private ApiError? error;
+    private bool busy;
+
+    /// <summary>The project a new task goes into. Used when creating.</summary>
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    /// <summary>The task to edit. Leave null to create a task.</summary>
+    [Parameter]
+    public TaskDetailDto? Existing { get; set; }
+
+    /// <summary>The five users to choose an assignee from.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<UserInfo> Users { get; set; } = [];
+
+    /// <summary>Raised with the task after it was created or saved.</summary>
+    [Parameter]
+    public EventCallback<TaskDetailDto> OnSaved { get; set; }
+
+    /// <summary>Raised when the user gives up.</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private bool IsEdit => Existing is not null;
+
+    protected override void OnInitialized()
+    {
+        if (Existing is { } task)
+        {
+            title = task.Title;
+            description = task.Description ?? string.Empty;
+            assignee = task.AssigneeUserId;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        busy = true;
+        error = null;
+        try
+        {
+            var result = Existing is { } task
+                ? await TasksApi.UpdateTaskAsync(task.Id, title, description, assignee)
+                : await TasksApi.CreateTaskAsync(ProjectId, title, description, assignee);
+
+            if (result.IsSuccess)
+            {
+                await OnSaved.InvokeAsync(result.Value!);
+            }
+            else
+            {
+                error = result.Error;   // nothing was saved; the user fixes the input and tries again
+            }
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

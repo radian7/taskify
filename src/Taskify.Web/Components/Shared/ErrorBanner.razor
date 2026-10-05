@@ -1,0 +1,26 @@
+@* Shows a failed API call. Every string is rendered through normal Razor binding, which HTML-encodes it, so
+   nothing a user typed (or a server sent) can run as markup (spec FR-020, research R9). Never use MarkupString here. *@
+@if (Error is not null)
+{
+    <div class="error-banner" role="alert">
+        <p class="error-message">@Error.Message</p>
+        @if (Error.FieldErrors.Count > 0)
+        {
+            <ul class="error-fields">
+                @foreach (var (field, messages) in Error.FieldErrors)
+                {
+                    @foreach (var message in messages)
+                    {
+                        <li data-field="@field">@message</li>
+                    }
+                }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The failed call to show, or null to show nothing.</summary>
+    [Parameter]
+    public ApiError? Error { get; set; }
+}

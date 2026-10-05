@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared by the integration and browser tests: starts the real AppHost with throwaway secrets, and loads the
+       committed contracts. It is a test helper, so xUnit's TestContext is available to it. -->
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.extensibility.core" />
+    <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="JsonSchema.Net" />
+    <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Taskify.AppHost\Taskify.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\Taskify.Contracts\Taskify.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>
