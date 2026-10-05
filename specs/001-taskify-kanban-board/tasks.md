@@ -26,6 +26,11 @@ every service interface. research.md R11 sets the test levels and the required t
 
 - **Docs (Principle IV)**: every public type and member has an XML doc comment (CS1591 is an
   error). Validation rules and security decisions also get an inline comment explaining why.
+- **READMEs and ADRs in the same change (Principle IV, Quality Gate 4)**: each story ends with a
+  docs task that updates the `README.md` of every service the story changed (responsibility,
+  endpoints and accepted callers, configuration, events, run and test) and adds an ADR in
+  `docs/adr/` for any significant decision the story made. A story is not done, and its work is
+  not merged, until that task is done. Phase 6b backfills the docs for Setup through US4.
 - **Validation (Principle II, FR-019)**:
   - Every endpoint goes through the shared `ValidationEndpointFilter<T>` (T030).
   - Strings are trimmed *before* checks, and an empty string in an optional field is stored as
@@ -193,7 +198,7 @@ and the Web shell. Every user story depends on these.
 
 ### Foundational integration tests
 
-- [X] T054 [P] Create the integration test fixture `TaskifyAppFixture` in `tests/Taskify.IntegrationTests/Infrastructure/TaskifyAppFixture.cs`. It starts the AppHost with `DistributedApplicationTestingBuilder`, provides test API keys for all four callers, waits for all resources to be healthy, and exposes `HttpClient`s for each API with helpers that set `X-Api-Key`, `X-Taskify-User` and `X-Taskify-Client-Ip`, plus a log-capture provider for audit assertions
+- [X] T054 [P] Create the integration test fixture `TaskifyAppFixture` in `tests/Taskify.IntegrationTests/Infrastructure/TaskifyAppFixture.cs`. It starts the AppHost with `DistributedApplicationTestingBuilder`, provides test API keys for all four callers, waits for all resources to be healthy, and exposes `HttpClient`s for each API with helpers that set `X-Api-Key`, `X-Taskify-User` and `X-Taskify-Client-Ip`, plus a log-capture provider for audit assertions **Implemented as:** the fixture lives in the shared project `tests/Taskify.TestSupport/TaskifyAppFixture.cs`, so the integration and E2E test assemblies use the same one; it starts the AppHost once per test assembly.
 - [X] T055 [P] Integration tests for cross-cutting API behavior in `tests/Taskify.IntegrationTests/Security/CrossCuttingTests.cs`:
   - no `X-Api-Key` → `401`; the Tasks key on a Tasks API route → `401`, because it is not a configured caller there;
   - the Notifications key on `GET /api/projects` → `403`, with a body matching the `CallerNotAllowed` response in contracts/projects-api.yaml;
@@ -249,7 +254,7 @@ user's tasks are highlighted.
 - [X] T071 [P] [US1] Create the `BoardColumn.razor` component (heading, count, list of `TaskCard`, empty state) in `src/Taskify.Web/Components/Board/BoardColumn.razor`, and add styles in `src/Taskify.Web/wwwroot/app.css`. Use no inline `style` attributes, because of the CSP
 - [X] T072 [US1] Create the `Board` page at route `/projects/{ProjectId:guid}` in `src/Taskify.Web/Components/Pages/Board.razor`. It loads the project and tasks, renders exactly four `BoardColumn`s in the order To Do, In Progress, In Review, Done, and shows "Add the first task" when there are no tasks. It shows `NotFound` when the project returns 404 (depends on T070, T071)
 - [X] T073 [US1] Create the `TaskDetails` page at route `/projects/{ProjectId:guid}/tasks/{TaskId:guid}` in `src/Taskify.Web/Components/Pages/TaskDetails.razor`. It shows the title, description, column, assignee, creator and dates as plain text, and has empty sections for history (US2) and comments (US4). It shows `NotFound` when either ID returns 404
-- [X] T074 [US1] Implement "Switch user" in `src/Taskify.Web/Components/Layout/MainLayout.razor`: call `CurrentUserService.Clear` (audited as part of the next selection), clear the cookie, then go to `/`
+- [X] T074 [US1] Implement "Switch user" in `src/Taskify.Web/Components/Layout/MainLayout.razor`: call `CurrentUserService.Clear` (audited as part of the next selection), clear the cookie, then go to `/` **Implemented as:** superseded by T051. "Switch user" is a plain link to `/` that does not call `Clear` or delete the cookie, so the next selection is audited as a switch with the previous user (FR-032). The cookie is replaced when the new user is chosen (`POST /session/select`).
 
 **Checkpoint**: US1 is fully usable on its own with the seed data. This is the MVP demo.
 
@@ -424,6 +429,36 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
 
 ---
 
+## Phase 6b: Documentation backfill for Setup through US4 (blocks US5)
+
+**Purpose**: Setup, Foundational and US1–US4 were merged without the service READMEs and ADRs
+that Principle IV and Quality Gate 4 require (analysis finding D1, 2026-10-05). These tasks,
+moved here from Polish, document what is built *now*. Each README covers only the behavior that
+exists today; US5 (T152) and US6 (T153) extend them. Every statement must match the code: read
+the endpoints, `Program.cs` and `AppHost.cs` rather than copying from the plan, and note where
+the code differs from the plan (the "Implemented as" notes in T038, T047–T049, T051, T055, T081).
+T144 also moves here, so the CI check that the OpenAPI contracts match the code runs before US5
+adds to them.
+
+- [ ] T138 [P] Write `src/Taskify.Projects.Api/README.md`: responsibility (projects and the user directory); endpoints with their accepted callers (R8 key matrix) and the routes exempt from `X-Taskify-User`; how to run and test it (`scripts/verify.ps1` filters); configuration (DB connection with TLS, the least-privilege DB role from T038, allowed API keys, secrets from `scripts/init-dev-secrets.ps1`); rate limits (per service, single instance, FR-031); dependencies; emitted events (`ProjectCreated`)
+- [ ] T139 [P] Write `src/Taskify.Tasks.Api/README.md`: responsibility (tasks, history, comments); endpoints and accepted callers; how to run and test it; configuration and the DB role; its dependency on the Projects API (project check, cached user directory); emitted events (no description or comment text); the last-save-wins rule (R14); the `status_changes` permission rule applied by `DatabaseRoles` (T081); the comment ownership and deletion rules
+- [ ] T140 [P] Write `src/Taskify.Notifications.Api/README.md` for the current foundation: responsibility (notifications and the board hub, both arriving in US5 and US6), configuration, the DB role, accepted callers, and the user-directory client. Mark the event intake, hub and notification sections as "added by US5/US6" so T152 and T153 fill them in
+- [ ] T141 [P] Write `src/Taskify.Web/README.md`: responsibility; pages; how the acting user is selected, stored (`SelectedUserMiddleware`, `POST /session/select`, the data-protected cookie, `CircuitIdentity`) and audited (FR-032); client-IP forwarding; the typed API clients and headers (`ApiClientBase`); security headers and CSP; Data Protection key encryption; the `MarkupString` ban (R9) and its CI check
+- [ ] T142 [P] Write the ADRs for decisions already in the code, in `docs/adr/` (one file each: context, decision, alternatives, consequences):
+  - `0001-service-decomposition.md` (R2);
+  - `0002-outbox-http-dispatch.md` (R4, including dead-lettering on `400`/`403`);
+  - `0003-phase1-identity-and-api-keys.md` (R8, the key matrix, and deviations D1 and D2 with owner Adrian Rogalczyk, review date 2027-01-04, and expiry in phase 2);
+  - `0004-encryption-in-transit.md` (R16, including the dev Postgres TLS approach and its fallback);
+  - `0005-message-contracts-asyncapi.md` (R15);
+  - `0006-per-service-database-roles.md` (T038 "Implemented as": migrate as administrator, run as a least-privilege role, `REVOKE` on `status_changes`);
+  - `0007-per-service-rate-limits.md` (R9 and the 2026-10-05 clarification: limits count per service and per instance).
+- [ ] T144 (moved from Polish, analysis finding G3: Quality Gates 4 and 5 need the contracts kept in sync before US5 changes them) Add a CI step to `.github/workflows/ci.yml` that builds each API with `Microsoft.Extensions.ApiDescription.Server`, generates the OpenAPI documents and diffs them against `specs/001-taskify-kanban-board/contracts/*-api.yaml` (no copy of the contracts, R12), failing on drift
+
+**Checkpoint**: every service built so far has a README that matches its code, every decision
+made so far has an ADR, and CI fails when an API drifts from its OpenAPI contract. From here on each story keeps them current.
+
+---
+
 ## Phase 7: User Story 5 - See other users' changes live (Priority: P3)
 
 **Goal**: Changes by other users show on open boards, task details and project lists within 2
@@ -480,14 +515,21 @@ refresh.
 - [ ] T124 [US5] Create `CoalescingRefresher` in `src/Taskify.Web/Services/CoalescingRefresher.cs`. It runs at most one re-fetch per second per open screen: signals inside the window are merged into a single trailing re-fetch, which keeps viewers inside the 300 reads per minute limit (research R5)
 - [ ] T125 [US5] Subscribe the pages to real-time signals, with every update re-fetched from the REST API rather than taken from the message contents. Each page uses `CoalescingRefresher` and `InvokeAsync(StateHasChanged)`, and disposes its subscriptions when the component is disposed:
   - `src/Taskify.Web/Components/Pages/Board.razor` subscribes to `project:{id}` and re-fetches tasks on `BoardChanged` or `Resync`;
-  - `src/Taskify.Web/Components/Pages/TaskDetails.razor` subscribes to `task:{id}` and re-fetches the task, history and comments;
-  - `src/Taskify.Web/Components/Pages/Projects.razor` refreshes on `ProjectListChanged`.
+  - `src/Taskify.Web/Components/Pages/TaskDetails.razor` subscribes to `task:{id}` and re-fetches the task, history and comments on `TaskChanged` or `Resync`;
+  - `src/Taskify.Web/Components/Pages/Projects.razor` re-fetches the project list on `ProjectListChanged` or `Resync`.
+  Every open screen handles `Resync`, because signals sent while the hub connection was down are lost and only a re-fetch brings the screen up to date (FR-026, research R5).
   (depends on T123, T124)
 - [ ] T126 [P] [US5] bUnit and unit tests in `tests/Taskify.Web.Tests/Realtime/RealtimeTests.cs`, using a fake `RealtimeBoardService` and a fake time provider:
   - when a `BoardChanged` signal arrives, the board re-fetches and re-renders;
   - 10 signals within 1 second cause at most 2 re-fetches;
-  - `Resync` causes a re-fetch;
+  - `Resync` causes a re-fetch on each of `Board`, `TaskDetails` and `Projects`;
   - the subscription is disposed when the component is disposed.
+- [ ] T152 [US5] Update the docs for US5 (Principle IV, same change as the code):
+  - `src/Taskify.Notifications.Api/README.md`: `/internal/events` (accepted callers, the caller policy per event type, envelope and payload validation, de-duplication, the `internal-events` rate limit), the `BoardHub` contract with its groups and argument validation, and the Web-key-only connection rule;
+  - `src/Taskify.Web/README.md`: `RealtimeBoardService`, group reference counting, `Resync` after reconnect (FR-026), `CoalescingRefresher` and the read budget;
+  - `src/Taskify.Projects.Api/README.md` and `src/Taskify.Tasks.Api/README.md`: where their outbox events are delivered and what happens while the Notifications API is down;
+  - ADR `docs/adr/0008-realtime-signals-and-refetch.md` (R5: SignalR hub in the Notifications API, signals carry IDs only, the Web app re-fetches over REST).
+  (depends on T110–T126)
 
 **Checkpoint**: Boards update live. If the Notifications API is down, changes are still saved and
 the board catches up after reconnect (outbox plus resync).
@@ -523,7 +565,7 @@ no notification is created.
   - `POST /api/notifications/read-all` → `204` and affects only the acting user;
   - an event delivered twice creates one notification;
   - the three US6 independent-test actions produce exactly three notifications (SC-009).
-- [ ] T129 [P] [US6] bUnit tests for `NotificationBell` (shows the unread count, the list renders summaries as plain text, marking read updates the count, live `NotificationCreated` increments the count, switching user re-subscribes) in `tests/Taskify.Web.Tests/Notifications/NotificationBellTests.cs`
+- [ ] T129 [P] [US6] bUnit tests for `NotificationBell` (shows the unread count, the list renders summaries as plain text, marking read updates the count, live `NotificationCreated` increments the count, `Resync` re-fetches the count, switching user re-subscribes) in `tests/Taskify.Web.Tests/Notifications/NotificationBellTests.cs`
 
 ### Implementation for User Story 6
 
@@ -542,8 +584,14 @@ no notification is created.
 - [ ] T137 [US6] Create the `NotificationBell.razor` component in `src/Taskify.Web/Components/Shared/NotificationBell.razor`:
   - the header badge shows the unread count;
   - a dropdown lists notifications (summary as plain text, relative time, a link to `/projects/{projectId}/tasks/{taskId}`, marked read on click) with a "Mark all read" button;
-  - it subscribes to `user:{currentUserId}` through `RealtimeBoardService` and re-subscribes when the user switches.
+  - it subscribes to `user:{currentUserId}` through `RealtimeBoardService` and re-subscribes when the user switches;
+  - on `Resync` it re-fetches the unread count and, if the dropdown is open, the list (FR-026).
   Add it to `src/Taskify.Web/Components/Layout/MainLayout.razor`
+- [ ] T153 [US6] Update the docs for US6 (Principle IV, same change as the code):
+  - `src/Taskify.Notifications.Api/README.md`: the notification endpoints and their ownership rule (FR-029), the trigger rules (FR-027), summaries, and the 30-day retention job (FR-030);
+  - `src/Taskify.Web/README.md`: `NotificationBell` and how it re-subscribes on user switch.
+  Add an ADR only if US6 made a decision not already covered by R10.
+  (depends on T127–T137)
 
 **Checkpoint**: All six stories work. Notifications follow FR-027–FR-030.
 
@@ -551,24 +599,14 @@ no notification is created.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-**Purpose**: Documentation, contract sync, end-to-end tests, performance, and the remaining
-security test sets.
+**Purpose**: Final documentation check, contract sync, end-to-end tests, performance, and the
+remaining security test sets. The service READMEs and ADRs are no longer written here: Phase 6b
+backfills them and each story keeps them current (T152, T153).
 
-- [ ] T138 [P] Write `src/Taskify.Projects.Api/README.md`. Cover its responsibility (projects and the user directory), endpoints and accepted callers (R8 matrix), how to run and test it, configuration (DB connection with TLS, allowed API keys), rate limits (single instance), dependencies and emitted events
-- [ ] T139 [P] Write `src/Taskify.Tasks.Api/README.md`. Cover its responsibility (tasks, history, comments), endpoints, how to run and test it, configuration, its dependency on the Projects API, emitted events, the last-save-wins rule, and the DB permission rule on `status_changes`
-- [ ] T140 [P] Write `src/Taskify.Notifications.Api/README.md`. Cover its responsibility (notifications and the board hub), endpoints, the hub contract and argument validation, event intake and caller policy, retention, and configuration
-- [ ] T141 [P] Write `src/Taskify.Web/README.md`. Cover its responsibility, pages, how the acting user is stored (cookie and circuit) and audited, client-IP forwarding, real-time wiring with coalescing, security headers and CSP, and the `MarkupString` ban
-- [ ] T142 [P] Write ADRs in `docs/adr/`:
-  - `0001-service-decomposition.md` (R2);
-  - `0002-outbox-http-dispatch.md` (R4);
-  - `0003-phase1-identity-and-api-keys.md` (R8, the key matrix, and deviations D1 and D2 with owner Adrian Rogalczyk, review date 2027-01-04, and expiry in phase 2);
-  - `0004-encryption-in-transit.md` (R16, including the dev Postgres TLS approach and its fallback);
-  - `0005-message-contracts-asyncapi.md` (R15).
 - [ ] T143 [P] Create the alert rules `deploy/alerts/rejections.yaml` (Prometheus rule format, read by the deployment's monitoring; R13):
   - `TaskifyAbnormalRejections` fires when `sum by (source) (increase(taskify_rejections_total[5m])) > 50`, where `source` is the client IP or the calling service;
   - `TaskifyOutboxDeadLettered` fires when `increase(taskify_outbox_deadlettered_total[15m]) > 0`.
   The thresholds are set by template variables with these defaults, not hard-coded. Document both alerts and how to view `taskify.rejections` in the Aspire dashboard in `src/Taskify.Web/README.md`
-- [ ] T144 Add a CI step to `.github/workflows/ci.yml` that builds each API with `Microsoft.Extensions.ApiDescription.Server`, generates the OpenAPI documents and diffs them against `specs/001-taskify-kanban-board/contracts/*-api.yaml` (no copy of the contracts, R12), failing on drift
 - [ ] T145 [P] End-to-end Playwright tests in `tests/Taskify.E2ETests/SmokeTests.cs`:
   - pick a user;
   - drag a card from To Do to In Progress and see it in under 1 s;
@@ -583,8 +621,9 @@ security test sets.
   - user selection and switch produce `UserSelected` with the previous user and IP (FR-032);
   - the `taskify.rejections` counter increments;
   - no title, description or comment text appears in any log line (FR-022).
-- [ ] T149 [P] Rate-limit integration tests (SC-010) in `tests/Taskify.IntegrationTests/Security/RateLimitTests.cs`: the 61st write by one user within a minute → `429` with `Retry-After`, and nothing is saved (re-fetch); the 301st read → `429`; another user is unaffected; the rejection is audited
+- [ ] T149 [P] Rate-limit integration tests (SC-010) in `tests/Taskify.IntegrationTests/Security/RateLimitTests.cs`: the 61st write by one user to one service within a minute → `429` with `Retry-After`, and nothing is saved (re-fetch); the 301st read → `429`; another user is unaffected; the same user can still write to a different service, because limits count per service (FR-031); the rejection is audited
 - [ ] T150 Persistence test (SC-004) in `tests/Taskify.IntegrationTests/PersistenceTests.cs`: create a project, task, move and comment; stop and restart the AppHost with the same data volume; confirm all of them are still there
+- [ ] T154 Documentation currency check (Principle IV, Quality Gate 4): confirm every `src/*` service README and every ADR in `docs/adr/` matches the final code (endpoints, callers, configuration, events, rate limits), that `docs/adr/` has an index listing each ADR, and that T143's alert documentation is in `src/Taskify.Web/README.md`. Fix any drift in the same change
 - [ ] T151 Run every scenario in `specs/001-taskify-kanban-board/quickstart.md` (automated validation, manual scenarios 1–20 and the API smoke checks) and record the results in `specs/001-taskify-kanban-board/quickstart-results.md`
 
 ---
@@ -602,7 +641,10 @@ security test sets.
   `TaskDetails` pages from US1. It is independent of US2.
 - **US4 (Phase 6)**: needs `TaskItem` and the `TaskDetails` page from US1. It is independent of
   US2 and US3.
-- **US5 (Phase 7)**: needs Foundational (outbox) and at least one event-emitting story (US2, US3
+- **Docs backfill (Phase 6b)**: documents Setup through US4 (T138–T142) and adds the OpenAPI
+  drift check (T144). It blocks US5, so no
+  new story starts while the existing services are undocumented.
+- **US5 (Phase 7)**: needs Phase 6b, Foundational (outbox) and at least one event-emitting story (US2, US3
   or US4) to have anything to broadcast. Events written before US5 is deployed are delivered
   once the intake accepts them. Until then the dispatcher retries; it does not dead-letter on
   connection errors.
@@ -613,7 +655,7 @@ security test sets.
 
 ```text
 Setup ─► Foundational ─► US1 (MVP) ─┬─► US2 ─┐
-                                    ├─► US3 ─┼─► US5 ─► US6 ─► Polish
+                                    ├─► US3 ─┼─► Docs backfill ─► US5 ─► US6 ─► Polish
                                     └─► US4 ─┘
 ```
 
@@ -622,6 +664,8 @@ Setup ─► Foundational ─► US1 (MVP) ─┬─► US2 ─┐
 - Tests first; they should fail before you implement.
 - Entities → DbContext and migration → validators → endpoints → Web components → page wiring.
 - The outbox event and audit call are written in the same task as the endpoint that changes data.
+- The story's last task updates the READMEs of the services it changed and adds any ADR it needs
+  (T152, T153). The story is not done until that task is.
 
 ---
 
@@ -636,7 +680,8 @@ Setup ─► Foundational ─► US1 (MVP) ─┬─► US2 ─┐
   `TaskDetails.razor` and `TaskCard.razor`.
 - **Inside each story**: every test task marked [P] and every entity or validator marked [P] can
   start together.
-- **Polish**: T138–T143 and T145–T149 run in parallel.
+- **Docs backfill**: T138–T142 and T144 run in parallel (one file or folder each).
+- **Polish**: T143 and T145–T149 run in parallel.
 
 ### Parallel example: User Story 1
 
@@ -690,8 +735,9 @@ Task: "T118 EventCallerPolicy"        Task: "T119 HubArgumentValidator"
 3. + US2 → the Kanban workflow and history (both P1 stories done).
 4. + US3 → real projects and tasks.
 5. + US4 → comments.
-6. + US5 → live updates. + US6 → notifications.
-7. Polish → docs and ADRs, OpenAPI drift check, E2E, performance and security test sets,
+6. + Docs backfill → READMEs and ADRs for everything built so far, and the OpenAPI drift check.
+7. + US5 → live updates. + US6 → notifications (each with its docs task).
+8. Polish → final docs check, E2E, performance and security test sets,
    quickstart run.
 
 ### Parallel team strategy

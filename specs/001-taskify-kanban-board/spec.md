@@ -37,6 +37,14 @@
   every selection and switch with the user chosen, the previous user (if any), the time, and the
   source IP address.
 
+### Session 2026-10-05
+
+- Q: Should the 60 changes / 300 reads per minute limit count each service separately, or one
+  total per user across all of Taskify? → A: Per service: each service (projects, tasks,
+  notifications) allows each user 60 changes and 300 reads per minute on its own.
+- Q: What rate counts as "normal use" that must never be rejected (SC-010)? → A: At most 1 change
+  per second, sustained for a minute ("at least" was a wording error).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Pick a user and view a project board (Priority: P1)
@@ -322,9 +330,9 @@ no notification is created.
   does not exist.
 - **FR-022**: System MUST log rejected requests and changes made to data (who, what, when) for
   audit, without recording comment or description content in the log.
-- **FR-031**: System MUST limit each user to 60 changes per minute (creating, editing, moving,
-  assigning, commenting, marking notifications read) and 300 reads per minute. A request over
-  the limit MUST be rejected with a "Too many requests, please wait a moment" message, MUST NOT
+- **FR-031**: Each service (projects, tasks, notifications) MUST limit each user to 60 changes
+  per minute (creating, editing, moving, assigning, commenting, marking notifications read) and
+  300 reads per minute, counted separately per service. A request over the limit MUST be rejected with a "Too many requests, please wait a moment" message, MUST NOT
   change any data, and MUST be logged for audit.
 - **FR-032**: System MUST record in the audit log every time a person selects or switches the
   user they act as, with the user chosen, the previous user (if any), the time, and the source IP
@@ -360,7 +368,7 @@ records the technical mitigations.
 | Data exposure | Content is read or altered while travelling inside the network | Disclosure or tampering | All traffic between users, services and stored data is encrypted in transit (constitution Principle I) |
 | Abuse | Malicious markup or script in titles, descriptions, comments or notifications | Code runs in other users' browsers | All user text is shown as plain text and never executed (FR-020, SC-006) |
 | Abuse | Invalid, oversized or unknown values (users, columns, projects) | Corrupted data, crashes | Every input is checked against explicit limits and allowed values, and invalid input is rejected whole with no change (FR-019, FR-021, SC-005) |
-| Abuse | Flooding the system with requests | Slowdown for the team | Per-user limits of 60 changes and 300 reads per minute; rejections are audited (FR-031, SC-010) |
+| Abuse | Flooding the system with requests | Slowdown for the team | Per-user limits of 60 changes and 300 reads per minute in each service; rejections are audited (FR-031, SC-010) |
 
 **Residual risk**: impersonation between the five users stays possible until phase 2 adds
 sign-in. The audit trail makes it detectable but does not prevent it. The project maintainer
@@ -387,9 +395,9 @@ owns this risk and reviews it each quarter (see the plan's Complexity Tracking, 
 - **SC-009**: In a test set covering each notification rule, 100% of qualifying actions create
   exactly one notification for the right user, and 0 notifications are created for a user's own
   actions.
-- **SC-010**: In a test, the 61st change and the 301st read by one user within a minute are
-  rejected with no data changed, while normal use (at least 1 change per second, sustained for a
-  minute) is never rejected.
+- **SC-010**: In a test, the 61st change and the 301st read by one user to the same service
+  within a minute are rejected with no data changed, while normal use (at most 1 change per
+  second, sustained for a minute) is never rejected.
 
 ## Assumptions
 
