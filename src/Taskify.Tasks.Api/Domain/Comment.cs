@@ -25,6 +25,11 @@ public readonly record struct CommentChange(CommentOutcome Outcome, bool Changed
 /// <remarks>"Chars" means user-perceived characters (spec FR-019): each visible character, including an emoji, counts as one.</remarks>
 public sealed class Comment
 {
+    // For EF Core only: a deleted comment has no text, so loading must not go through the validating constructor.
+    private Comment()
+    {
+    }
+
     /// <summary>Creates a comment.</summary>
     /// <param name="id">The ID. "Generated".</param>
     /// <param name="taskId">The task it is on. "FK → Task".</param>

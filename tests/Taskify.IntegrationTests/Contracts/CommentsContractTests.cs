@@ -263,8 +263,8 @@ public class CommentsContractTests(TaskifyAppFixture app)
     {
         var task = await NewTaskAsync();
         var otherTask = await NewTaskAsync();
-        var id = (await PostAsync(task, SeedIds.Priya, "mine")).GetProperty("id").GetGuid();
-        using var client = Tasks(SeedIds.Priya);
+        var id = (await PostAsync(task, SeedIds.Tomasz, "mine")).GetProperty("id").GetGuid();
+        using var client = Tasks(SeedIds.Tomasz);
 
         using var unknown = await client.PutAsync($"/api/tasks/{task}/comments/{Guid.NewGuid()}", Json(Text("x")), TestContext.Current.CancellationToken);
         using var wrongTask = await client.PutAsync($"/api/tasks/{otherTask}/comments/{id}", Json(Text("x")), TestContext.Current.CancellationToken);
@@ -280,8 +280,8 @@ public class CommentsContractTests(TaskifyAppFixture app)
     public async Task An_invalid_edit_is_rejected_and_the_comment_is_unchanged()
     {
         var task = await NewTaskAsync();
-        var id = (await PostAsync(task, SeedIds.Priya, "keep me")).GetProperty("id").GetGuid();
-        using var client = Tasks(SeedIds.Priya);
+        var id = (await PostAsync(task, SeedIds.Tomasz, "keep me")).GetProperty("id").GetGuid();
+        using var client = Tasks(SeedIds.Tomasz);
 
         using var empty = await client.PutAsync($"/api/tasks/{task}/comments/{id}", Json(Text("   ")), TestContext.Current.CancellationToken);
         using var tooLong = await client.PutAsync($"/api/tasks/{task}/comments/{id}", Json(Text(new string('c', 2001))), TestContext.Current.CancellationToken);
@@ -297,8 +297,8 @@ public class CommentsContractTests(TaskifyAppFixture app)
     public async Task Deleting_leaves_a_placeholder_and_erases_the_text_from_the_database_and_the_events()
     {
         var task = await NewTaskAsync();
-        var id = (await PostAsync(task, SeedIds.Priya, "very secret words")).GetProperty("id").GetGuid();
-        using var client = Tasks(SeedIds.Priya);
+        var id = (await PostAsync(task, SeedIds.Tomasz, "very secret words")).GetProperty("id").GetGuid();
+        using var client = Tasks(SeedIds.Tomasz);
 
         using var response = await client.DeleteAsync($"/api/tasks/{task}/comments/{id}", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -309,7 +309,7 @@ public class CommentsContractTests(TaskifyAppFixture app)
         Assert.True(placeholder.GetProperty("isDeleted").GetBoolean());
         Assert.Equal(JsonValueKind.Null, placeholder.GetProperty("text").ValueKind);
         Assert.NotEqual(JsonValueKind.Null, placeholder.GetProperty("deletedAt").ValueKind);
-        Assert.Equal(SeedIds.Priya, placeholder.GetProperty("authorUserId").GetGuid());
+        Assert.Equal(SeedIds.Tomasz, placeholder.GetProperty("authorUserId").GetGuid());
 
         // The thread keeps the placeholder in place; the words are gone from storage and from every event (spec FR-024).
         var thread = await ListAsync(client, task);
@@ -324,7 +324,7 @@ public class CommentsContractTests(TaskifyAppFixture app)
     public async Task Another_user_cannot_delete_the_comment_and_gets_403()
     {
         var task = await NewTaskAsync();
-        var id = (await PostAsync(task, SeedIds.Priya, "mine")).GetProperty("id").GetGuid();
+        var id = (await PostAsync(task, SeedIds.Tomasz, "mine")).GetProperty("id").GetGuid();
         using var liam = Tasks(SeedIds.Liam);
 
         using var response = await liam.DeleteAsync($"/api/tasks/{task}/comments/{id}", TestContext.Current.CancellationToken);
@@ -337,8 +337,8 @@ public class CommentsContractTests(TaskifyAppFixture app)
     public async Task A_deleted_comment_cannot_be_edited_deleted_again_or_restored_and_gets_409()
     {
         var task = await NewTaskAsync();
-        var id = (await PostAsync(task, SeedIds.Priya, "gone soon")).GetProperty("id").GetGuid();
-        using var client = Tasks(SeedIds.Priya);
+        var id = (await PostAsync(task, SeedIds.Tomasz, "gone soon")).GetProperty("id").GetGuid();
+        using var client = Tasks(SeedIds.Tomasz);
         (await client.DeleteAsync($"/api/tasks/{task}/comments/{id}", TestContext.Current.CancellationToken)).Dispose();
 
         using var edit = await client.PutAsync($"/api/tasks/{task}/comments/{id}", Json(Text("back again")), TestContext.Current.CancellationToken);
@@ -354,11 +354,11 @@ public class CommentsContractTests(TaskifyAppFixture app)
     public async Task An_edit_and_a_delete_at_the_same_time_never_leave_text_behind_on_a_deleted_comment()
     {
         var task = await NewTaskAsync();
-        using var client = Tasks(SeedIds.Priya);
+        using var client = Tasks(SeedIds.Tomasz);
 
         for (var round = 0; round < 8; round++)
         {
-            var id = (await PostAsync(task, SeedIds.Priya, $"round {round}")).GetProperty("id").GetGuid();
+            var id = (await PostAsync(task, SeedIds.Tomasz, $"round {round}")).GetProperty("id").GetGuid();
 
             var edit = client.PutAsync($"/api/tasks/{task}/comments/{id}", Json(Text("edited at the same time")), TestContext.Current.CancellationToken);
             var delete = client.DeleteAsync($"/api/tasks/{task}/comments/{id}", TestContext.Current.CancellationToken);

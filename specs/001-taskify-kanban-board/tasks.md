@@ -379,13 +379,13 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
 
 ### Tests for User Story 4
 
-- [ ] T100 [P] [US4] Unit tests for `CommentTextValidator` in `tests/Taskify.UnitTests/Validation/CommentTextValidatorTests.cs`. Accepted: 1 and 2,000 characters after trim, including 2,000 emoji. Rejected: empty, whitespace-only, 2,001 characters, over the 32,000 code-unit guard, extra property
-- [ ] T101 [P] [US4] Unit tests for the comment lifecycle in `tests/Taskify.UnitTests/Domain/CommentTests.cs`:
+- [X] T100 [P] [US4] Unit tests for `CommentTextValidator` in `tests/Taskify.UnitTests/Validation/CommentTextValidatorTests.cs`. Accepted: 1 and 2,000 characters after trim, including 2,000 emoji. Rejected: empty, whitespace-only, 2,001 characters, over the 32,000 code-unit guard, extra property
+- [X] T101 [P] [US4] Unit tests for the comment lifecycle in `tests/Taskify.UnitTests/Domain/CommentTests.cs`:
   - an author edit sets `editedAt`;
   - a non-author edit or delete → forbidden;
   - delete sets `text = null` and `deletedAt`;
   - editing or deleting an already deleted comment → conflict, and the comment cannot be restored.
-- [ ] T102 [P] [US4] Contract and integration tests in `tests/Taskify.IntegrationTests/Contracts/CommentsContractTests.cs`:
+- [X] T102 [P] [US4] Contract and integration tests in `tests/Taskify.IntegrationTests/Contracts/CommentsContractTests.cs`:
   - `POST` → `201` with the author set to the acting user;
   - `GET` lists comments oldest first, including deleted placeholders (`isDeleted=true`, `text=null`);
   - an edit by a non-author → `403`;
@@ -403,10 +403,10 @@ comment is visible but cannot be edited or deleted, switch back, and edit and de
 
 ### Implementation for User Story 4
 
-- [ ] T104 [P] [US4] Create the `Comment` entity in `src/Taskify.Tasks.Api/Domain/Comment.cs`. Fields: `id` UUID ("Generated"), `taskId` UUID ("FK → Task"), `authorUserId` UUID ("Acting user at creation; never changes"), `text` text nullable ("1–2,000 chars after trim (FR-015); set to null on delete (FR-024)"), `createdAt` timestamptz ("Set by the server"), `editedAt` timestamptz nullable ("Set on each edit (FR-016)"), `deletedAt` timestamptz nullable ("Set on delete"). Add methods `Edit(text, actingUserId, now)` and `Delete(actingUserId, now)`, which return a result of `Ok`, `Forbidden` or `AlreadyDeleted` following the comment lifecycle in data-model.md
-- [ ] T105 [US4] Add `Comments` to `TasksDbContext` (FK to Task, index (`taskId`, `createdAt`)) and add migration `AddComments` in `src/Taskify.Tasks.Api/Data/Migrations/`. Update the `GET /api/tasks` query in `src/Taskify.Tasks.Api/Endpoints/TaskReadEndpoints.cs` so `commentCount` counts only comments that are not deleted (depends on T104)
-- [ ] T106 [P] [US4] Create `CommentTextValidator` (`text` "1–2,000 chars after trim (FR-015)" via `MustHaveTextLength(1,2000)`) in `src/Taskify.Tasks.Api/Validation/CommentTextValidator.cs`
-- [ ] T107 [US4] Implement the comment endpoints in `src/Taskify.Tasks.Api/Endpoints/CommentEndpoints.cs`, all with `.RequireCallers("web")`:
+- [X] T104 [P] [US4] Create the `Comment` entity in `src/Taskify.Tasks.Api/Domain/Comment.cs`. Fields: `id` UUID ("Generated"), `taskId` UUID ("FK → Task"), `authorUserId` UUID ("Acting user at creation; never changes"), `text` text nullable ("1–2,000 chars after trim (FR-015); set to null on delete (FR-024)"), `createdAt` timestamptz ("Set by the server"), `editedAt` timestamptz nullable ("Set on each edit (FR-016)"), `deletedAt` timestamptz nullable ("Set on delete"). Add methods `Edit(text, actingUserId, now)` and `Delete(actingUserId, now)`, which return a result of `Ok`, `Forbidden` or `AlreadyDeleted` following the comment lifecycle in data-model.md
+- [X] T105 [US4] Add `Comments` to `TasksDbContext` (FK to Task, index (`taskId`, `createdAt`)) and add migration `AddComments` in `src/Taskify.Tasks.Api/Data/Migrations/`. Update the `GET /api/tasks` query in `src/Taskify.Tasks.Api/Endpoints/TaskReadEndpoints.cs` so `commentCount` counts only comments that are not deleted (depends on T104)
+- [X] T106 [P] [US4] Create `CommentTextValidator` (`text` "1–2,000 chars after trim (FR-015)" via `MustHaveTextLength(1,2000)`) in `src/Taskify.Tasks.Api/Validation/CommentTextValidator.cs`
+- [X] T107 [US4] Implement the comment endpoints in `src/Taskify.Tasks.Api/Endpoints/CommentEndpoints.cs`, all with `.RequireCallers("web")`:
   - `GET /api/tasks/{taskId}/comments` (`.RequireReads()`): oldest first, including deleted placeholders; `404` for an unknown task.
   - `POST /api/tasks/{taskId}/comments` (`.RequireWrites()`): validated, with the acting user as author. Outbox `CommentAdded` with `taskId`, `projectId`, `title`, `commentId` and `assigneeUserId?`; no comment text.
   - `PUT /api/tasks/{taskId}/comments/{commentId}` (`.RequireWrites()`): `403` for a non-author, `409` when deleted. Outbox `CommentEdited`.
