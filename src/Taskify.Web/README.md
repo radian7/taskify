@@ -102,6 +102,24 @@ unless the line carries a `markup-allowed:` comment.
 - **User switch**: when `UserId` changes, the bell leaves the old group, joins the new one, clears its list and re-fetches.
   Disposing the bell leaves the group.
 
+## Alerts and the rejection counter (R13)
+
+Every refused request (`400`, `401`, `403`, `404` on a write, `409`, `413`, `422`, `429`) increments the OpenTelemetry
+counter `taskify.rejections`, tagged `reason`, `caller` and `service`. In the Aspire dashboard open **Metrics**, pick a
+service, then `taskify.rejections`, and filter or group by `reason` or `caller`. The matching audit lines are in the
+**Structured logs** view (`Audit RequestRejected ...`).
+
+[`deploy/alerts/rejections.yaml`](../../deploy/alerts/rejections.yaml) holds the Prometheus rules the deployment's
+monitoring reads. Thresholds are template variables with defaults:
+
+| Alert | Fires when | Variable (default) |
+|---|---|---|
+| `TaskifyAbnormalRejections` | more than N refusals from one caller in 5 minutes (`sum by (caller) (increase(taskify_rejections_total[5m]))`) | `TASKIFY_REJECTIONS_THRESHOLD` (50) |
+| `TaskifyOutboxDeadLettered` | `increase(taskify_outbox_deadlettered_total[15m])` is above N | `TASKIFY_DEADLETTER_THRESHOLD` (0) |
+
+Render the file with `envsubst` before loading it. The counter has no client-IP tag (an IP would be a high-cardinality
+label), so the per-source grouping uses the `caller` label; the client IP is in the audit log lines (`sourceIp`).
+
 ## Run and test
 
 ```powershell

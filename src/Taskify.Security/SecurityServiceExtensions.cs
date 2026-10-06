@@ -43,7 +43,7 @@ public static class SecurityServiceExtensions
     }
 
     /// <summary>
-    /// Adds the security middleware in the required order: exception handler, API key (key matrix), client IP,
+    /// Adds the security middleware in the required order: audit of unaudited refusals, exception handler, API key (key matrix), client IP,
     /// acting user, rate limiter. Call it before mapping endpoints.
     /// </summary>
     /// <param name="app">The web application.</param>
@@ -52,6 +52,8 @@ public static class SecurityServiceExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        // First, so it sees the final status of every response, including the ones the framework answers itself.
+        app.UseMiddleware<UnauditedRejectionMiddleware>();
         app.UseExceptionHandler();
         app.UseStatusCodePages();
         app.UseMiddleware<ApiKeyMiddleware>();

@@ -64,6 +64,12 @@ public sealed class AuditLogger(
 
         if (entry.Outcome != AuditOutcome.Succeeded)
         {
+            // Tells UnauditedRejectionMiddleware that this refusal has its audit line already.
+            if (context is not null)
+            {
+                context.Items[UnauditedRejectionMiddleware.AuditedKey] = true;
+            }
+
             TaskifyMetrics.Rejections.Add(
                 1,
                 new KeyValuePair<string, object?>("reason", entry.Outcome.ToString()),

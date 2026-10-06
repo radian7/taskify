@@ -1,0 +1,27 @@
+# Prometheus alert rules for Taskify (research R13, constitution Security Requirements).
+#
+# The thresholds are template variables, not hard-coded. Render the file before loading it, for example:
+#   TASKIFY_REJECTIONS_THRESHOLD=50 TASKIFY_DEADLETTER_THRESHOLD=0 envsubst < rejections.yaml > rendered.yaml
+# Defaults (used when a variable is unset, via the ${VAR:-default} form): 50 rejections in 5 minutes per source,
+# and any dead-lettered outbox event in 15 minutes.
+#
+# Metric names: OpenTelemetry's "taskify.rejections" becomes "taskify_rejections_total" in Prometheus.
+# The counter carries the tags reason, caller and service. "caller" is the calling service, or "none" for a request
+# with no valid API key; the per-source grouping below therefore uses the "caller" label.
+groups:
+  - name: taskify-rejections
+    rules:
+      - alert: TaskifyAbnormalRejections
+        expr: sum by (caller) (increase(taskify_rejections_total[5m])) > ${TASKIFY_REJECTIONS_THRESHOLD:-50}
+        labels:
+          severity: warning
+        annotations:
+          summary: "Abnormal number of rejected requests from {{ $labels.caller }}"
+          description: "More than ${TASKIFY_REJECTIONS_THRESHOLD:-50} requests from {{ $labels.caller }} were refused in 5 minutes (validation, authentication, authorization or rate limiting). Possible abuse."
+      - alert: TaskifyOutboxDeadLettered
+        expr: increase(taskify_outbox_deadlettered_total[15m]) > ${TASKIFY_DEADLETTER_THRESHOLD:-0}
+        labels:
+          severity: critical
+        annotations:
+          summary: "An outbox event was dead-lettered"
+          description: "An event was dropped after a permanent rejection, so a real-time update or notification was missed. Check the Audit EventDeadLettered log lines."

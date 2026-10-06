@@ -55,7 +55,9 @@ var postgres = builder.AddPostgres("postgres", password: postgresPassword)
 // touches (or is confused by) the data of a developer's own run.
 if (!string.Equals(builder.Configuration["Taskify:PersistData"], "false", StringComparison.OrdinalIgnoreCase))
 {
-    postgres.WithDataVolume("taskify-postgres-data");
+    // The volume name can be overridden ("--Taskify:DataVolumeName=..."). Only the persistence test does, so it uses
+    // its own throwaway volume and never the developer's.
+    postgres.WithDataVolume(builder.Configuration["Taskify:DataVolumeName"] is { Length: > 0 } volumeName ? volumeName : "taskify-postgres-data");
 }
 
 // One database per service (constitution Principle III).

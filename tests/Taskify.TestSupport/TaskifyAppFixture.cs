@@ -16,7 +16,7 @@ namespace Taskify.TestSupport;
 /// <remarks>
 /// Needs a container runtime. With Podman, set <c>ASPIRE_CONTAINER_RUNTIME=podman</c>.
 /// </remarks>
-public sealed class TaskifyAppFixture : IAsyncLifetime
+public class TaskifyAppFixture : IAsyncLifetime
 {
     /// <summary>The API key of the Web app in this test run.</summary>
     public const string WebKey = "test-web-key-5c1f9d3a7e2b4c6d8a0f";
@@ -51,6 +51,12 @@ public sealed class TaskifyAppFixture : IAsyncLifetime
 
     private DistributedApplication? app;
 
+    /// <summary>
+    /// Gets command-line arguments added after the standard ones, so they win. A derived fixture uses this to start a
+    /// second application with its own settings, for example the persistence test with its own data volume.
+    /// </summary>
+    protected virtual IReadOnlyList<string> ExtraArguments => [];
+
     /// <summary>Gets the running application.</summary>
     public DistributedApplication App => app ?? throw new InvalidOperationException("The fixture has not started.");
 
@@ -72,6 +78,7 @@ public sealed class TaskifyAppFixture : IAsyncLifetime
                 $"--Parameters:notifications-api-key={NotificationsKey}",
                 $"--Parameters:dataprotection-cert={CreateDataProtectionCertificate()}",
                 $"--Parameters:dataprotection-cert-password={CertificatePassword}",
+                .. ExtraArguments,
             ],
             (options, _) => options.DisableDashboard = true,
             cancellation);
@@ -94,6 +101,8 @@ public sealed class TaskifyAppFixture : IAsyncLifetime
         {
             await app.DisposeAsync();
         }
+
+        GC.SuppressFinalize(this);
     }
 
     private static readonly Guid[] RotatingUsers = [SeedIds.Priya, SeedIds.Liam, SeedIds.Tomasz, SeedIds.Jordan];

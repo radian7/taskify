@@ -603,7 +603,7 @@ no notification is created.
 remaining security test sets. The service READMEs and ADRs are no longer written here: Phase 6b
 backfills them and each story keeps them current (T152, T153).
 
-- [ ] T143 [P] Create the alert rules `deploy/alerts/rejections.yaml` (Prometheus rule format, read by the deployment's monitoring; R13):
+- [X] T143 [P] Create the alert rules `deploy/alerts/rejections.yaml` (Prometheus rule format, read by the deployment's monitoring; R13):
   - `TaskifyAbnormalRejections` fires when `sum by (source) (increase(taskify_rejections_total[5m])) > 50`, where `source` is the client IP or the calling service;
   - `TaskifyOutboxDeadLettered` fires when `increase(taskify_outbox_deadlettered_total[15m]) > 0`.
   The thresholds are set by template variables with these defaults, not hard-coded. Document both alerts and how to view `taskify.rejections` in the Aspire dashboard in `src/Taskify.Web/README.md`
@@ -615,14 +615,14 @@ backfills them and each story keeps them current (T152, T153).
   - a `<script>alert(1)</script>` title triggers no dialog;
   - the CSP header is present, and Blazor's reconnect overlay shows no CSP violations in the console when the connection drops.
 - [ ] T146 [P] Performance test: seed a project with 200 tasks and assert that the `Board` page loads and is interactive within 2 s (SC-007) in `tests/Taskify.E2ETests/PerformanceTests.cs`
-- [ ] T147 [P] Injection test set (SC-006) in `tests/Taskify.IntegrationTests/Security/InjectionTests.cs`. Use common XSS payloads in titles, descriptions, comments and project names (script tags, `onerror` attributes, `javascript:` URLs, SVG). Each payload must be stored verbatim, returned verbatim, and HTML-encoded in rendered Web output and notification summaries. Also send SQL-injection strings and assert no 500 errors and no data change
-- [ ] T148 [P] Audit-log tests in `tests/Taskify.IntegrationTests/Security/AuditLogTests.cs`, using the fixture's log capture:
+- [X] T147 [P] Injection test set (SC-006) in `tests/Taskify.IntegrationTests/Security/InjectionTests.cs`. Use common XSS payloads in titles, descriptions, comments and project names (script tags, `onerror` attributes, `javascript:` URLs, SVG). Each payload must be stored verbatim, returned verbatim, and HTML-encoded in rendered Web output and notification summaries. Also send SQL-injection strings and assert no 500 errors and no data change
+- [X] T148 [P] Audit-log tests in `tests/Taskify.IntegrationTests/Security/AuditLogTests.cs`, using the fixture's log capture:
   - data changes and rejections (`400`, `401`, `403`, `409`, `413`, `422`, `429`) produce audit events with the acting user, action, entity, outcome, `callerService` and the forwarded `sourceIp`;
   - user selection and switch produce `UserSelected` with the previous user and IP (FR-032);
   - the `taskify.rejections` counter increments;
   - no title, description or comment text appears in any log line (FR-022).
-- [ ] T149 [P] Rate-limit integration tests (SC-010) in `tests/Taskify.IntegrationTests/Security/RateLimitTests.cs`: the 61st write by one user to one service within a minute → `429` with `Retry-After`, and nothing is saved (re-fetch); the 301st read → `429`; another user is unaffected; the same user can still write to a different service, because limits count per service (FR-031); the rejection is audited
-- [ ] T150 Persistence test (SC-004) in `tests/Taskify.IntegrationTests/PersistenceTests.cs`: create a project, task, move and comment; stop and restart the AppHost with the same data volume; confirm all of them are still there
+- [X] T149 [P] Rate-limit integration tests (SC-010) in `tests/Taskify.IntegrationTests/Security/RateLimitTests.cs`: the 61st write by one user to one service within a minute → `429` with `Retry-After`, and nothing is saved (re-fetch); the 301st read → `429`; another user is unaffected; the same user can still write to a different service, because limits count per service (FR-031); the rejection is audited
+- [X] T150 Persistence test (SC-004) in `tests/Taskify.IntegrationTests/PersistenceTests.cs`: create a project, task, move and comment; stop and restart the AppHost with the same data volume; confirm all of them are still there
 - [ ] T154 Documentation currency check (Principle IV, Quality Gate 4): confirm every `src/*` service README and every ADR in `docs/adr/` matches the final code (endpoints, callers, configuration, events, rate limits), that `docs/adr/` has an index listing each ADR, and that T143's alert documentation is in `src/Taskify.Web/README.md`. Fix any drift in the same change
 - [ ] T151 Run every scenario in `specs/001-taskify-kanban-board/quickstart.md` (automated validation, manual scenarios 1–20 and the API smoke checks) and record the results in `specs/001-taskify-kanban-board/quickstart-results.md`
 
