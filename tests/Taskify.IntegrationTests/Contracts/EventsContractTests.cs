@@ -230,6 +230,9 @@ public class EventsContractTests(TaskifyAppFixture app)
         using var tasks = app.CreateClient("tasks-api", TaskifyAppFixture.WebKey, SeedIds.Priya);
         var (taskId, from) = await FirstTaskAsync(tasks, SeedIds.MobileAppLaunch);
         var to = from == "InProgress" ? "InReview" : "InProgress";
+        var (sentinelId, sentinelFrom) = await FirstTaskAsync(tasks, SeedIds.MobileAppLaunch, except: taskId);
+        var sentinelTo = sentinelFrom == "InProgress" ? "InReview" : "InProgress";
+        var sentinelMoved = false;
         var restarted = false;
         try
         {
@@ -247,10 +250,25 @@ public class EventsContractTests(TaskifyAppFixture app)
             await app.App.ResourceNotifications.WaitForResourceHealthyAsync("notifications-api", cancellation)
                 .WaitAsync(TimeSpan.FromSeconds(120), cancellation);
 
-            var signal = await hub.NextMatchingAsync(
-                s => s.GetProperty("type").GetString() == EventTypes.TaskMoved && s.GetProperty("taskId").GetGuid() == taskId,
+            // Groups do not survive the restart, so the hub client must reconnect and rejoin before it can be signalled.
+            // The outbox may redeliver before that happens; the signal is then sent to an empty group and is lost by
+            // design. FR-026 is met by delivery plus the resync the Web client does on reconnect (R5), so assert that.
+            await hub.Rejoined.WaitAsync(TimeSpan.FromSeconds(120), cancellation);
+
+            // Events are dispatched in order (R4): once a later move of another task is signalled, the first move was
+            // delivered too, whether or not this client was in the group when it was sent.
+            sentinelMoved = true;
+            (await MoveAsync(tasks, sentinelId, sentinelTo)).Dispose();
+            var sentinelSignal = await hub.NextMatchingAsync(
+                s => s.GetProperty("type").GetString() == EventTypes.TaskMoved && s.GetProperty("taskId").GetGuid() == sentinelId,
                 TimeSpan.FromSeconds(120));
-            Assert.Equal(SeedIds.MobileAppLaunch, signal.GetProperty("projectId").GetGuid());
+            Assert.Equal(SeedIds.MobileAppLaunch, sentinelSignal.GetProperty("projectId").GetGuid());
+
+            // The resync the Web client does after a reconnect shows the move made while the service was down.
+            var refetched = await tasks.GetStringAsync($"/api/tasks?projectId={SeedIds.MobileAppLaunch}", cancellation);
+            var status = JsonDocument.Parse(refetched).RootElement.EnumerateArray()
+                .First(t => t.GetProperty("id").GetGuid() == taskId).GetProperty("status").GetString();
+            Assert.Equal(to, status);
         }
         finally
         {
@@ -262,15 +280,19 @@ public class EventsContractTests(TaskifyAppFixture app)
             }
 
             (await MoveAsync(tasks, taskId, from)).Dispose();
+            if (sentinelMoved)
+            {
+                (await MoveAsync(tasks, sentinelId, sentinelFrom)).Dispose();
+            }
         }
     }
 
     // ---- helpers ---------------------------------------------------------------------------------------------
 
-    private static async Task<(Guid TaskId, string Status)> FirstTaskAsync(HttpClient tasks, Guid project)
+    private static async Task<(Guid TaskId, string Status)> FirstTaskAsync(HttpClient tasks, Guid project, Guid? except = null)
     {
         var body = await tasks.GetStringAsync($"/api/tasks?projectId={project}", TestContext.Current.CancellationToken);
-        var task = JsonDocument.Parse(body).RootElement.EnumerateArray().First(t => t.GetProperty("status").GetString() != "Done");
+        var task = JsonDocument.Parse(body).RootElement.EnumerateArray().First(t => t.GetProperty("status").GetString() != "Done" && t.GetProperty("id").GetGuid() != except);
         return (task.GetProperty("id").GetGuid(), task.GetProperty("status").GetString()!);
     }
 
@@ -284,10 +306,14 @@ public class EventsContractTests(TaskifyAppFixture app)
     private sealed class HubClient : IAsyncDisposable
     {
         private readonly Channel<JsonElement> signals = Channel.CreateUnbounded<JsonElement>();
+        private readonly TaskCompletionSource rejoined = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private HubClient(HubConnection connection) => Connection = connection;
 
         public HubConnection Connection { get; }
+
+        /// <summary>Completes once the client has reconnected after a drop and rejoined its project group.</summary>
+        public Task Rejoined => rejoined.Task;
 
         public static HubConnection Build(TaskifyAppFixture app, string? key, Guid? rejoinProject = null)
         {
@@ -324,7 +350,11 @@ public class EventsContractTests(TaskifyAppFixture app)
             if (rejoin is { } project)
             {
                 // Groups do not survive a reconnect: the Web server rejoins them, then re-fetches (FR-026, R5).
-                connection.Reconnected += _ => connection.InvokeAsync("JoinProject", project);
+                connection.Reconnected += async _ =>
+                {
+                    await connection.InvokeAsync("JoinProject", project);
+                    client.rejoined.TrySetResult();
+                };
             }
 
             await connection.StartAsync(TestContext.Current.CancellationToken);
