@@ -581,13 +581,13 @@ no notification is created.
   - `POST /api/notifications/read-all` (`.RequireWrites()`): `204`.
   Audit the read-state changes (depends on T131, T134)
 - [X] T136 [P] [US6] Create `NotificationRetentionJob : BackgroundService`, which runs daily and deletes notifications whose `createdAt` is more than 30 days ago (FR-030) and `ProcessedEvent` rows whose `receivedAt` is more than 30 days ago, in `src/Taskify.Notifications.Api/Data/NotificationRetentionJob.cs`. Add a unit test with a fake time provider in `tests/Taskify.UnitTests/Notifications/RetentionJobTests.cs`
-- [ ] T137 [US6] Create the `NotificationBell.razor` component in `src/Taskify.Web/Components/Shared/NotificationBell.razor`:
+- [X] T137 [US6] Create the `NotificationBell.razor` component in `src/Taskify.Web/Components/Shared/NotificationBell.razor`:
   - the header badge shows the unread count;
   - a dropdown lists notifications (summary as plain text, relative time, a link to `/projects/{projectId}/tasks/{taskId}`, marked read on click) with a "Mark all read" button;
   - it subscribes to `user:{currentUserId}` through `RealtimeBoardService` and re-subscribes when the user switches;
   - on `Resync` it re-fetches the unread count and, if the dropdown is open, the list (FR-026).
   Add it to `src/Taskify.Web/Components/Layout/MainLayout.razor`
-- [ ] T153 [US6] Update the docs for US6 (Principle IV, same change as the code):
+- [X] T153 [US6] Update the docs for US6 (Principle IV, same change as the code):
   - `src/Taskify.Notifications.Api/README.md`: the notification endpoints and their ownership rule (FR-029), the trigger rules (FR-027), summaries, and the 30-day retention job (FR-030);
   - `src/Taskify.Web/README.md`: `NotificationBell` and how it re-subscribes on user switch.
   Add an ADR only if US6 made a decision not already covered by R10.

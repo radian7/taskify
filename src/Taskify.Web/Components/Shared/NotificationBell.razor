@@ -1,11 +1,159 @@
-@* Stub for T137: the real component shows the unread badge and the dropdown (spec FR-027, FR-028). *@
-<span class="notification-bell"></span>
+@using Taskify.Contracts.Hub
+@inject NotificationsClient NotificationsApi
+@inject IRealtimeBoard Realtime
+@inject TimeProvider Time
+@implements IDisposable
+
+@* Summaries are server-generated text and are always rendered as encoded text, never as markup (R9). *@
+<div class="notification-bell">
+    <button type="button" class="notification-toggle" aria-label="Notifications" aria-expanded="@open.ToString().ToLowerInvariant()" @onclick="ToggleAsync">
+        <span aria-hidden="true">Notifications</span>
+        @if (unread > 0)
+        {
+            <span class="notification-badge">@unread</span>
+        }
+    </button>
+    @if (open)
+    {
+        <div class="notification-dropdown">
+            <ErrorBanner Error="error" />
+            <div class="notification-actions">
+                <button type="button" class="mark-all-read" @onclick="MarkAllReadAsync">Mark all read</button>
+            </div>
+            @if (notifications is { Count: 0 })
+            {
+                <p class="empty-state">No notifications yet.</p>
+            }
+            else if (notifications is not null)
+            {
+                <ul class="notification-list">
+                    @foreach (var item in notifications)
+                    {
+                        <li class="notification @(item.IsRead ? "" : "notification--unread")">
+                            <a href="/projects/@item.ProjectId/tasks/@item.TaskId" @onclick="() => MarkReadAsync(item)">
+                                <span class="notification-summary">@item.Summary</span>
+                                <span class="notification-time">@RelativeTime(item.CreatedAt)</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+</div>
 
 @code {
+    private const int ListLimit = 50;
+
+    private int unread;
+    private bool open;
+    private List<NotificationDto>? notifications;
+    private ApiError? error;
+    private IDisposable? subscription;
+    private Guid subscribedUser;
+
     /// <summary>The acting user whose notifications are shown. A change re-subscribes to <c>user:{id}</c>.</summary>
     [Parameter, EditorRequired]
     public Guid UserId { get; set; }
 
     /// <inheritdoc />
-    protected override void OnInitialized() => throw new NotImplementedException("T137");
+    protected override async Task OnParametersSetAsync()
+    {
+        if (subscribedUser == UserId && subscription is not null)
+        {
+            return;
+        }
+
+        // The user switched (or this is the first render): leave the old group, join the new one, start fresh.
+        subscription?.Dispose();
+        subscribedUser = UserId;
+        subscription = Realtime.SubscribeUser(UserId, OnSignal);
+        notifications = null;
+        await LoadAsync();
+    }
+
+    /// <inheritdoc />
+    public void Dispose() => subscription?.Dispose();
+
+    // A signal or a resync only says "re-fetch"; the REST API is the truth (FR-026).
+    private void OnSignal() => _ = InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    private async Task LoadAsync()
+    {
+        var count = await NotificationsApi.GetUnreadCountAsync();
+        if (count.IsSuccess)
+        {
+            unread = count.Value!.Count;
+            error = null;
+        }
+        else
+        {
+            error = count.Error;
+        }
+
+        if (open)
+        {
+            var list = await NotificationsApi.ListAsync(ListLimit);
+            if (list.IsSuccess)
+            {
+                notifications = list.Value;
+            }
+            else
+            {
+                error = list.Error;
+            }
+        }
+    }
+
+    private async Task ToggleAsync()
+    {
+        open = !open;
+        if (open)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task MarkReadAsync(NotificationDto item)
+    {
+        if (!item.IsRead)
+        {
+            var result = await NotificationsApi.MarkReadAsync(item.Id);
+            error = result.IsSuccess ? null : result.Error;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        var result = await NotificationsApi.MarkAllReadAsync();
+        error = result.IsSuccess ? null : result.Error;
+        await LoadAsync();
+    }
+
+    private string RelativeTime(DateTimeOffset time)
+    {
+        var age = Time.GetUtcNow() - time;
+        if (age < TimeSpan.FromMinutes(1))
+        {
+            return "just now";
+        }
+
+        if (age < TimeSpan.FromHours(1))
+        {
+            return $"{(int)age.TotalMinutes} min ago";
+        }
+
+        if (age < TimeSpan.FromDays(1))
+        {
+            return $"{(int)age.TotalHours} h ago";
+        }
+
+        return $"{(int)age.TotalDays} d ago";
+    }
 }

@@ -206,7 +206,7 @@ public sealed class NotificationBellTests : BunitContext
         var cut = RenderBell(1);
         Assert.Equal(1, realtime.ActiveCount);
 
-        cut.Dispose();
+        cut.Instance.Dispose();   // IRenderedComponent.Dispose does not dispose the component itself
 
         Assert.Equal(0, realtime.ActiveCount);
     }

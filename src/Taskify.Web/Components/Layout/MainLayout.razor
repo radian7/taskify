@@ -8,6 +8,7 @@
         <div class="header-user">
             @if (CurrentUser.Current is { } user)
             {
+                <NotificationBell UserId="user.Id" />
                 <span class="current-user">Acting as <strong>@user.DisplayName</strong></span>
                 @* "Switch user" goes to the selection screen without clearing the selection, so the next choice
                    is audited with the previous user (spec FR-032). *@

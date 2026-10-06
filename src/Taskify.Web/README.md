@@ -88,6 +88,20 @@ unless the line carries a `markup-allowed:` comment.
 - **Pages** (`Board`, `Projects`) re-fetch over REST on a signal. Signals carry IDs only and nothing is rendered from
   them. Log messages contain connection state only.
 
+## Notifications (US6, FR-027 to FR-029)
+
+- **`NotificationBell`** (in `MainLayout`, parameter `UserId`): shows the unread count as a badge. Its dropdown lists the
+  latest 50 notifications, newest first, with a relative time and a link to `/projects/{projectId}/tasks/{taskId}`.
+  Clicking one marks it read; "Mark all read" marks all. Summaries are rendered as encoded text, never `MarkupString` (R9).
+- **`NotificationsClient`**: `GET /api/notifications/unread-count`, `GET /api/notifications?limit=`, and the two `POST`
+  read calls. After every action the bell re-fetches the count (and the list when open); the API is the truth.
+- **Realtime**: the bell subscribes to `user:{id}` through `IRealtimeBoard.SubscribeUser`. `RealtimeBoardService` handles
+  `NotificationCreated` (binding only the ID, because the server sends `type` as a name and the bell never shows the
+  content) and, as the payload has no recipient, tells every `user:` subscriber; each re-fetches its own user's data over
+  REST. A resync after reconnect does the same. Signals are de-duplicated by notification ID.
+- **User switch**: when `UserId` changes, the bell leaves the old group, joins the new one, clears its list and re-fetches.
+  Disposing the bell leaves the group.
+
 ## Run and test
 
 ```powershell

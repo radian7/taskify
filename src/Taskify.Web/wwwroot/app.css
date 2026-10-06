@@ -64,6 +64,56 @@ h1 {
     gap: 1rem;
 }
 
+.notification-bell {
+    position: relative;
+}
+
+.notification-badge {
+    margin-left: 0.4rem;
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.notification-dropdown {
+    position: absolute;
+    right: 0;
+    z-index: 10;
+    width: 22rem;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.notification-list {
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.notification a {
+    display: block;
+    padding: 0.4rem;
+    text-decoration: none;
+    color: var(--text);
+}
+
+.notification--unread {
+    font-weight: 700;
+}
+
+.notification-time {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 400;
+}
+
 .app-main {
     flex: 1;
     padding: 1.5rem;

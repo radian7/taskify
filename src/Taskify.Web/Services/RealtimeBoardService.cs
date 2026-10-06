@@ -64,8 +64,20 @@ public sealed class RealtimeBoardService : IRealtimeBoard, IAsyncDisposable
         connection.On<BoardChanged>("BoardChanged", signal => Route("BoardChanged", signal.EventId, ProjectGroup(signal.ProjectId)));
         connection.On<TaskChanged>("TaskChanged", signal => Route("TaskChanged", signal.EventId, TaskGroup(signal.TaskId)));
         connection.On<ProjectListChanged>("ProjectListChanged", signal => Route("ProjectListChanged", signal.EventId, ProjectsGroup));
+
+        // Only the ID is bound: the server sends the type as a name and the bell never shows the content (it re-fetches).
+        // The payload carries no recipient, so every user: subscriber re-fetches; each one's REST call is scoped to its own user.
+        connection.On<NotificationSignal>("NotificationCreated", signal =>
+        {
+            if (recent.TryAdd(("NotificationCreated", signal.Id)))
+            {
+                Notify(s => s.Group.StartsWith("user:", StringComparison.Ordinal));
+            }
+        });
         connection.Reconnected += _ => OnConnectedAsync();
     }
+
+    private sealed record NotificationSignal(Guid Id);
 
     private static string ProjectGroup(Guid id) => $"project:{id}";
 

@@ -11,27 +11,27 @@ public sealed class NotificationsClient(HttpClient http, CircuitIdentity identit
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The count, or the error.</returns>
     public Task<ApiResult<UnreadCountDto>> GetUnreadCountAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("T137");
+        GetAsync<UnreadCountDto>("/api/notifications/unread-count", cancellationToken: cancellationToken);
 
     /// <summary>Gets the acting user's notifications, newest first (<c>GET /api/notifications?limit={limit}</c>).</summary>
     /// <param name="limit">How many to fetch (1 to 100).</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The notifications, or the error.</returns>
     public Task<ApiResult<List<NotificationDto>>> ListAsync(int limit = 50, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("T137");
+        GetAsync<List<NotificationDto>>($"/api/notifications?limit={limit}", cancellationToken: cancellationToken);
 
     /// <summary>Marks one notification read (<c>POST /api/notifications/{id}/read</c>).</summary>
     /// <param name="notificationId">The notification.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success, or the error.</returns>
     public Task<ApiResult> MarkReadAsync(Guid notificationId, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("T137");
+        SendAsync(HttpMethod.Post, $"/api/notifications/{notificationId:D}/read", cancellationToken: cancellationToken);
 
     /// <summary>Marks all of the acting user's notifications read (<c>POST /api/notifications/read-all</c>).</summary>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success, or the error.</returns>
     public Task<ApiResult> MarkAllReadAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("T137");
+        SendAsync(HttpMethod.Post, "/api/notifications/read-all", cancellationToken: cancellationToken);
 }
 
 /// <summary>The answer of <c>GET /api/notifications/unread-count</c>.</summary>
