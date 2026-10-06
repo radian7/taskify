@@ -607,14 +607,14 @@ backfills them and each story keeps them current (T152, T153).
   - `TaskifyAbnormalRejections` fires when `sum by (source) (increase(taskify_rejections_total[5m])) > 50`, where `source` is the client IP or the calling service;
   - `TaskifyOutboxDeadLettered` fires when `increase(taskify_outbox_deadlettered_total[15m]) > 0`.
   The thresholds are set by template variables with these defaults, not hard-coded. Document both alerts and how to view `taskify.rejections` in the Aspire dashboard in `src/Taskify.Web/README.md`
-- [ ] T145 [P] End-to-end Playwright tests in `tests/Taskify.E2ETests/SmokeTests.cs`:
+- [X] T145 [P] End-to-end Playwright tests in `tests/Taskify.E2ETests/SmokeTests.cs`:
   - pick a user;
   - drag a card from To Do to In Progress and see it in under 1 s;
   - a second browser context sees the move in under 2 s (SC-008);
   - the keyboard "Move to…" menu gives the same result;
   - a `<script>alert(1)</script>` title triggers no dialog;
   - the CSP header is present, and Blazor's reconnect overlay shows no CSP violations in the console when the connection drops.
-- [ ] T146 [P] Performance test: seed a project with 200 tasks and assert that the `Board` page loads and is interactive within 2 s (SC-007) in `tests/Taskify.E2ETests/PerformanceTests.cs`
+- [X] T146 [P] Performance test: seed a project with 200 tasks and assert that the `Board` page loads and is interactive within 2 s (SC-007) in `tests/Taskify.E2ETests/PerformanceTests.cs`
 - [X] T147 [P] Injection test set (SC-006) in `tests/Taskify.IntegrationTests/Security/InjectionTests.cs`. Use common XSS payloads in titles, descriptions, comments and project names (script tags, `onerror` attributes, `javascript:` URLs, SVG). Each payload must be stored verbatim, returned verbatim, and HTML-encoded in rendered Web output and notification summaries. Also send SQL-injection strings and assert no 500 errors and no data change
 - [X] T148 [P] Audit-log tests in `tests/Taskify.IntegrationTests/Security/AuditLogTests.cs`, using the fixture's log capture:
   - data changes and rejections (`400`, `401`, `403`, `409`, `413`, `422`, `429`) produce audit events with the acting user, action, entity, outcome, `callerService` and the forwarded `sourceIp`;

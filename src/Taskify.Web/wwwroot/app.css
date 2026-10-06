@@ -461,3 +461,29 @@ label {
     display: flex;
     gap: 0.6rem;
 }
+
+/* Reconnect dialog (Components/Shared/ReconnectModal.razor). Blazor adds one state class to the dialog. */
+#components-reconnect-modal {
+    border: 1px solid #c9ced6;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    max-width: 24rem;
+    text-align: center;
+}
+
+#components-reconnect-modal::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+#components-reconnect-modal .reconnect-container > * {
+    display: none;
+    margin: 0.5rem 0;
+}
+
+#components-reconnect-modal.components-reconnect-show .reconnect-first-attempt,
+#components-reconnect-modal.components-reconnect-retrying .reconnect-first-attempt,
+#components-reconnect-modal.components-reconnect-failed .reconnect-failed,
+#components-reconnect-modal.components-reconnect-paused .reconnect-paused,
+#components-reconnect-modal.components-reconnect-resume-failed .reconnect-resume-failed {
+    display: block;
+}

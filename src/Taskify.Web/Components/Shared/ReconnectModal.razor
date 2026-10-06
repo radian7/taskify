@@ -1,0 +1,13 @@
+@* Replaces Blazor's built-in reconnect overlay, which writes inline styles that the Content Security Policy blocks
+   (research R9). Blazor looks for an element with this ID and raises "components-reconnect-state-changed" on it;
+   js/reconnect-modal.js opens and closes the dialog. All styling is in app.css. *@
+<dialog id="components-reconnect-modal" data-nosnippet>
+    <div class="reconnect-container" role="alert">
+        <p class="reconnect-first-attempt">Connection lost. Rejoining the server...</p>
+        <p class="reconnect-failed">Failed to rejoin. Retry or reload the page.</p>
+        <button id="components-reconnect-button" class="reconnect-failed" type="button">Retry</button>
+        <p class="reconnect-paused">The session has been paused by the server.</p>
+        <button id="components-resume-button" class="reconnect-paused" type="button">Resume</button>
+        <p class="reconnect-resume-failed">Failed to resume the session. Reload the page.</p>
+    </div>
+</dialog>

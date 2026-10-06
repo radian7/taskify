@@ -190,6 +190,77 @@ public class SmokeTests(TaskifyAppFixture app, BrowserFixture browser)
         }
     }
 
+    [Fact]
+    public async Task A_move_made_in_one_browser_shows_in_a_second_browser_within_two_seconds()
+    {
+        await using var mover = await browser.NewSessionAsync(app.GetUri("web"));
+        await using var watcher = await browser.NewSessionAsync(app.GetUri("web"));
+        var moverPage = await mover.NewPageAsync();
+        var watcherPage = await watcher.NewPageAsync();
+        await ChooseUserAsync(moverPage, "Priya Patel");
+        await ChooseUserAsync(watcherPage, "Liam Novak");
+        await OpenBoardAsync(moverPage, "Mobile App Launch");
+        await OpenBoardAsync(watcherPage, "Mobile App Launch");
+        await Assertions.Expect(Card(watcherPage, "ToDo", Task)).ToBeVisibleAsync();
+
+        // Give the second browser's hub connection a moment to be established before the move.
+        await System.Threading.Tasks.Task.Delay(1500, TestContext.Current.CancellationToken);
+
+        try
+        {
+            await Card(moverPage, "ToDo", Task).DragToAsync(Column(moverPage, "InProgress"));
+
+            // SC-008: the other viewer sees the move within 2 seconds, without reloading.
+            await Assertions.Expect(Card(watcherPage, "InProgress", Task)).ToBeVisibleAsync(new() { Timeout = 2000 });
+            await Assertions.Expect(Card(watcherPage, "ToDo", Task)).ToHaveCountAsync(0);
+        }
+        finally
+        {
+            var href = await Card(moverPage, "InProgress", Task).Locator(".task-title a").GetAttributeAsync("href");
+            if (href is not null)
+            {
+                await new SavedState(app).TaskIsInAsync(href, "InProgress");
+            }
+
+            await RestoreAsync(moverPage, from: "InProgress", to: "To Do");
+        }
+    }
+
+    [Fact]
+    public async Task Pages_carry_a_content_security_policy_and_losing_the_connection_shows_the_reconnect_overlay_without_violations()
+    {
+        await using var context = await browser.NewSessionAsync(app.GetUri("web"));
+        var page = await context.NewPageAsync();
+        var console = new List<string>();
+        page.Console += (_, message) => console.Add(message.Text);
+
+        // Keep a handle on the circuit's WebSocket, so the test can cut it the way a network failure would.
+        IWebSocketRoute? socket = null;
+        await page.RouteWebSocketAsync(new Regex("/_blazor"), route =>
+        {
+            route.ConnectToServer();
+            socket = route;
+        });
+
+        var response = await page.GotoAsync("/");
+        Assert.NotNull(response);
+        var headers = await response.AllHeadersAsync();
+        Assert.True(headers.TryGetValue("content-security-policy", out var policy), "The Content-Security-Policy header is missing.");
+        Assert.Contains("default-src", policy);
+
+        await ChooseUserAsync(page, "Jordan Lee");
+        await OpenBoardAsync(page, "Mobile App Launch");
+
+        // Cut the connection: Blazor shows its reconnect overlay, then reconnects and the overlay goes away.
+        Assert.NotNull(socket);
+        await socket.CloseAsync();
+        var overlay = page.Locator("#components-reconnect-modal");
+        await Assertions.Expect(overlay).ToBeVisibleAsync(new() { Timeout = 15000 });
+        await Assertions.Expect(overlay).ToBeHiddenAsync(new() { Timeout = 30000 });
+
+        Assert.DoesNotContain(console, line => line.Contains("Content Security Policy", StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>Puts the sample card back in To Do using the menu, whatever column it is in.</summary>
     private static async Task RestoreAsync(IPage page, string from, string to)
     {
