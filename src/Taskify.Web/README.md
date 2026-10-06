@@ -55,6 +55,13 @@ The app has no inline scripts or styles. Antiforgery's own `X-Frame-Options` is 
 policy is set to `'none'`, so all three agree. HTTPS redirection is on, HSTS is enabled outside Development, and a
 per-IP rate limit (1,200 requests/min) guards the app.
 
+## Reconnect dialog
+
+`Components/Shared/ReconnectModal.razor` and `wwwroot/js/reconnect-modal.js` replace Blazor's built-in reconnect overlay,
+which writes inline styles that the CSP above blocks. Blazor finds the `components-reconnect-modal` dialog by ID and raises
+`components-reconnect-state-changed` on it; the script opens the dialog on `show`, closes it on `hide`, retries when the tab
+becomes visible after a failure and reloads on `rejected`. All styling is in `app.css`; there is no inline script or style.
+
 ## Data Protection key encryption
 
 `DataProtectionSetup` persists the key ring to `DataProtection:KeysPath` (default under LocalApplicationData) and

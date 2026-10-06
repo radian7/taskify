@@ -8,7 +8,7 @@ and `realtime-hub.md`. Design background: [ADR 0008](../../docs/adr/0008-realtim
 ## What exists today
 
 - `Program.cs`: service defaults, `AddTaskifySecurity` (API keys, acting user, audit, rate limits, Problem Details),
-  `NotificationsDbContext` (`notificationsdb`, table `ProcessedEvents`), `AddRemoteUserDirectory`, FluentValidation,
+  `NotificationsDbContext` (`notificationsdb`, tables `Notifications` and `ProcessedEvents`), `AddRemoteUserDirectory`, FluentValidation,
   OpenAPI, SignalR, `POST /internal/events` and `BoardHub` at `/hubs/board`.
 - The OpenAPI document (Web key only) and the health endpoints.
 

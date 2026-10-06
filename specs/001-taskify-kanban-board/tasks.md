@@ -623,8 +623,8 @@ backfills them and each story keeps them current (T152, T153).
   - no title, description or comment text appears in any log line (FR-022).
 - [X] T149 [P] Rate-limit integration tests (SC-010) in `tests/Taskify.IntegrationTests/Security/RateLimitTests.cs`: the 61st write by one user to one service within a minute → `429` with `Retry-After`, and nothing is saved (re-fetch); the 301st read → `429`; another user is unaffected; the same user can still write to a different service, because limits count per service (FR-031); the rejection is audited
 - [X] T150 Persistence test (SC-004) in `tests/Taskify.IntegrationTests/PersistenceTests.cs`: create a project, task, move and comment; stop and restart the AppHost with the same data volume; confirm all of them are still there
-- [ ] T154 Documentation currency check (Principle IV, Quality Gate 4): confirm every `src/*` service README and every ADR in `docs/adr/` matches the final code (endpoints, callers, configuration, events, rate limits), that `docs/adr/` has an index listing each ADR, and that T143's alert documentation is in `src/Taskify.Web/README.md`. Fix any drift in the same change
-- [ ] T151 Run every scenario in `specs/001-taskify-kanban-board/quickstart.md` (automated validation, manual scenarios 1–20 and the API smoke checks) and record the results in `specs/001-taskify-kanban-board/quickstart-results.md`
+- [X] T154 Documentation currency check (Principle IV, Quality Gate 4): confirm every `src/*` service README and every ADR in `docs/adr/` matches the final code (endpoints, callers, configuration, events, rate limits), that `docs/adr/` has an index listing each ADR, and that T143's alert documentation is in `src/Taskify.Web/README.md`. Fix any drift in the same change
+- [X] T151 Run every scenario in `specs/001-taskify-kanban-board/quickstart.md` (automated validation, manual scenarios 1–20 and the API smoke checks) and record the results in `specs/001-taskify-kanban-board/quickstart-results.md`
 
 ---
 
