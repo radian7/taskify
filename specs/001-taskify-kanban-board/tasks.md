@@ -452,7 +452,7 @@ adds to them.
   - `0005-message-contracts-asyncapi.md` (R15);
   - `0006-per-service-database-roles.md` (T038 "Implemented as": migrate as administrator, run as a least-privilege role, `REVOKE` on `status_changes`);
   - `0007-per-service-rate-limits.md` (R9 and the 2026-10-05 clarification: limits count per service and per instance).
-- [ ] T144 (moved from Polish, analysis finding G3: Quality Gates 4 and 5 need the contracts kept in sync before US5 changes them) Add a CI step to `.github/workflows/ci.yml` that builds each API with `Microsoft.Extensions.ApiDescription.Server`, generates the OpenAPI documents and diffs them against `specs/001-taskify-kanban-board/contracts/*-api.yaml` (no copy of the contracts, R12), failing on drift
+- [X] T144 (moved from Polish, analysis finding G3: Quality Gates 4 and 5 need the contracts kept in sync before US5 changes them) Add a CI step to `.github/workflows/ci.yml` that builds each API with `Microsoft.Extensions.ApiDescription.Server`, generates the OpenAPI documents and diffs them against `specs/001-taskify-kanban-board/contracts/*-api.yaml` (no copy of the contracts, R12), failing on drift
 
 **Checkpoint**: every service built so far has a README that matches its code, every decision
 made so far has an ADR, and CI fails when an API drifts from its OpenAPI contract. From here on each story keeps them current.
