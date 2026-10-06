@@ -1,0 +1,11 @@
+@* Stub for T137: the real component shows the unread badge and the dropdown (spec FR-027, FR-028). *@
+<span class="notification-bell"></span>
+
+@code {
+    /// <summary>The acting user whose notifications are shown. A change re-subscribes to <c>user:{id}</c>.</summary>
+    [Parameter, EditorRequired]
+    public Guid UserId { get; set; }
+
+    /// <inheritdoc />
+    protected override void OnInitialized() => throw new NotImplementedException("T137");
+}

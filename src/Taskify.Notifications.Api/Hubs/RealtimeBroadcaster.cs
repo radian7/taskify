@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Taskify.Contracts.Events;
+using Taskify.Notifications.Api.Domain;
 
 namespace Taskify.Notifications.Api.Hubs;
 
@@ -71,6 +72,31 @@ public sealed class RealtimeBroadcaster(IHubContext<BoardHub> hub)
                 },
                 cancellationToken);
         }
+    }
+
+    /// <summary>Sends <c>NotificationCreated</c> to the recipient's <c>user:{id}</c> group (contracts/realtime-hub.md).</summary>
+    /// <param name="notification">The saved notification.</param>
+    /// <param name="cancellationToken">Cancels the sending.</param>
+    /// <returns>A task that completes when the signal was handed to SignalR.</returns>
+    public Task NotifyAsync(Notification notification, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        // The shape is the Notification schema of notifications-api.yaml; the type travels as its name.
+        return hub.Clients.Group(BoardHub.UserGroup(notification.RecipientUserId)).SendAsync(
+            "NotificationCreated",
+            new
+            {
+                id = notification.Id,
+                type = notification.Type.ToString(),
+                taskId = notification.TaskId,
+                projectId = notification.ProjectId,
+                actorUserId = notification.ActorUserId,
+                summary = notification.Summary,
+                createdAt = notification.CreatedAt,
+                isRead = notification.ReadAt is not null,
+            },
+            cancellationToken);
     }
 
     private static Guid? ReadGuid(JsonElement payload, string name) =>

@@ -165,6 +165,17 @@ public static class TestClients
         new(new HttpClient(handler, disposeHandler: false) { BaseAddress = BaseAddress }, identity);
 }
 
+/// <summary>Creates the Notifications client that talks to a <see cref="StubHandler"/>.</summary>
+public static class NotificationTestClients
+{
+    /// <summary>Creates a Notifications client.</summary>
+    /// <param name="handler">The canned responses.</param>
+    /// <param name="identity">The circuit identity.</param>
+    /// <returns>The client.</returns>
+    public static NotificationsClient Notifications(StubHandler handler, CircuitIdentity identity) =>
+        new(new HttpClient(handler, disposeHandler: false) { BaseAddress = TestClients.BaseAddress }, identity);
+}
+
 /// <summary>A realtime service that records subscriptions and lets a test raise signals by hand.</summary>
 public sealed class FakeRealtimeBoard : IRealtimeBoard
 {

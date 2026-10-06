@@ -46,6 +46,7 @@ public static class InternalEventEndpoints
     /// <param name="request">The request.</param>
     /// <param name="validator">Validates the envelope and payload.</param>
     /// <param name="db">The notifications database.</param>
+    /// <param name="users">The user directory, for the actor's display name in summaries.</param>
     /// <param name="broadcaster">Sends the hub signals.</param>
     /// <param name="time">The clock.</param>
     /// <param name="audit">Records the event or the refusal.</param>
@@ -55,6 +56,7 @@ public static class InternalEventEndpoints
         HttpRequest request,
         EventEnvelopeValidator validator,
         NotificationsDbContext db,
+        IUserDirectory users,
         RealtimeBroadcaster broadcaster,
         TimeProvider time,
         IAuditLogger audit,
@@ -86,9 +88,15 @@ public static class InternalEventEndpoints
             return Problems.Forbidden("This caller may not send this event type.");
         }
 
+        // The directory is cached and read outside the transaction; it only supplies the name used in the summary.
+        var actorName = (await users.GetAllAsync(cancellationToken)).FirstOrDefault(u => u.Id == envelope.ActorUserId)?.DisplayName
+            ?? "Someone";
+
+        Notification? notification = null;
         var firstDelivery = await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             db.ChangeTracker.Clear();
+            notification = null;
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
             if (await db.ProcessedEvents.AnyAsync(e => e.EventId == envelope.EventId, cancellationToken))
@@ -98,7 +106,15 @@ public static class InternalEventEndpoints
 
             db.ProcessedEvents.Add(new ProcessedEvent(envelope.EventId, time.GetUtcNow()));
 
-            // The event handlers run here, in the same transaction (US6 adds notification creation).
+            // Notification creation runs in the same transaction as the ProcessedEvent row (spec FR-027, SC-009).
+            if (NotificationTriggerRules.Evaluate(envelope, actorName) is { } draft)
+            {
+                notification = new Notification(
+                    Guid.CreateVersion7(), draft.RecipientUserId, draft.Type, draft.TaskId, draft.ProjectId,
+                    envelope.ActorUserId, draft.Summary, time.GetUtcNowMicroseconds(), envelope.EventId);
+                db.Notifications.Add(notification);
+            }
+
             try
             {
                 await db.SaveChangesAsync(cancellationToken);
@@ -127,6 +143,11 @@ public static class InternalEventEndpoints
 
         // After the commit: signals are only hints (R5), the saved state is the truth.
         await broadcaster.BroadcastAsync(envelope, cancellationToken);
+        if (notification is not null)
+        {
+            await broadcaster.NotifyAsync(notification, cancellationToken);
+        }
+
         return Results.Accepted();
     }
 

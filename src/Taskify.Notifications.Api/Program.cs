@@ -26,6 +26,7 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<EventEnvelopeValidator>();
 builder.Services.AddScoped<HubArgumentValidator>();
 builder.Services.AddSingleton<RealtimeBroadcaster>();
+builder.Services.AddHostedService<NotificationRetentionJob>();
 
 var app = builder.Build();
 
@@ -48,6 +49,7 @@ app.MapOpenApi().RequireCallers(Callers.Web).AllowAnonymousActingUser();
 // Only the Web server may open a hub connection (R8); the connection has no acting user.
 app.MapHub<BoardHub>("/hubs/board").RequireCallers(Callers.Web).AllowAnonymousActingUser();
 app.MapInternalEventEndpoints();
+app.MapNotificationEndpoints();
 
 app.Run();
 

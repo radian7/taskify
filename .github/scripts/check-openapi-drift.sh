@@ -19,10 +19,9 @@ export ConnectionStrings__projectsdb="Host=localhost;Database=openapi" \
 PY=python3; "$PY" --version >/dev/null 2>&1 || PY=python
 "$PY" -c "import yaml" 2>/dev/null || "$PY" -m pip install --quiet pyyaml
 
-# APIs whose contract describes endpoints that are not built yet (US5 T122 and US6 T135 add them
-# to Notifications). For these, operations missing from the code are tolerated; everything the code
-# does expose must still match. Remove the entry when those endpoints exist.
-pending="Notifications"
+# APIs whose contract describes endpoints that are not built yet; for these, operations missing from the code
+# are tolerated. Empty now that every endpoint exists.
+pending=""
 
 failed=0
 for api in Projects Tasks Notifications; do
