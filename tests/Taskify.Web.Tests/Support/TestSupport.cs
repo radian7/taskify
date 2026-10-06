@@ -2,6 +2,9 @@ using System.Net;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Time.Testing;
 using Taskify.Contracts;
 using Taskify.Security.Audit;
 using Taskify.Security.Users;
@@ -160,4 +163,82 @@ public static class TestClients
     /// <returns>The client.</returns>
     public static TasksClient Tasks(StubHandler handler, CircuitIdentity identity) =>
         new(new HttpClient(handler, disposeHandler: false) { BaseAddress = BaseAddress }, identity);
+}
+
+/// <summary>A realtime service that records subscriptions and lets a test raise signals by hand.</summary>
+public sealed class FakeRealtimeBoard : IRealtimeBoard
+{
+    private readonly List<Entry> entries = [];
+
+    /// <summary>Gets the number of subscriptions that are still active.</summary>
+    public int ActiveCount => entries.Count(e => !e.Disposed);
+
+    /// <summary>Gets the groups subscribed to so far, in order, for example <c>project:{id}</c>.</summary>
+    public List<string> Subscribed { get; } = [];
+
+    /// <inheritdoc />
+    public IDisposable SubscribeProject(Guid projectId, Action onSignal) => Add($"project:{projectId}", onSignal);
+
+    /// <inheritdoc />
+    public IDisposable SubscribeTask(Guid taskId, Action onSignal) => Add($"task:{taskId}", onSignal);
+
+    /// <inheritdoc />
+    public IDisposable SubscribeUser(Guid userId, Action onSignal) => Add($"user:{userId}", onSignal);
+
+    /// <inheritdoc />
+    public IDisposable SubscribeProjectList(Action onSignal) => Add("projects", onSignal);
+
+    /// <summary>Raises a change signal for one group.</summary>
+    /// <param name="group">The group name.</param>
+    public void Raise(string group)
+    {
+        foreach (var entry in entries.Where(e => !e.Disposed && e.Group == group).ToList())
+        {
+            entry.OnSignal();
+        }
+    }
+
+    /// <summary>Raises a resync: every active subscriber is told to re-fetch.</summary>
+    public void Resync()
+    {
+        foreach (var entry in entries.Where(e => !e.Disposed).ToList())
+        {
+            entry.OnSignal();
+        }
+    }
+
+    private Entry Add(string group, Action onSignal)
+    {
+        var entry = new Entry(group, onSignal);
+        entries.Add(entry);
+        Subscribed.Add(group);
+        return entry;
+    }
+
+    private sealed class Entry(string group, Action onSignal) : IDisposable
+    {
+        public string Group { get; } = group;
+
+        public Action OnSignal { get; } = onSignal;
+
+        public bool Disposed { get; private set; }
+
+        public void Dispose() => Disposed = true;
+    }
+}
+
+/// <summary>Registers the realtime pieces the pages need.</summary>
+public static class RealtimeTestServices
+{
+    /// <summary>Registers a <see cref="FakeRealtimeBoard"/> (also as <see cref="IRealtimeBoard"/>) and a fake clock.</summary>
+    /// <param name="services">The bUnit service collection.</param>
+    /// <returns>The fake board.</returns>
+    public static FakeRealtimeBoard AddFakeRealtime(this IServiceCollection services)
+    {
+        var fake = new FakeRealtimeBoard();
+        services.AddSingleton(fake);
+        services.AddSingleton<IRealtimeBoard>(fake);
+        services.TryAddSingleton<TimeProvider>(new FakeTimeProvider());
+        return fake;
+    }
 }

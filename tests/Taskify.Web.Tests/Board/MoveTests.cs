@@ -42,6 +42,7 @@ public sealed class MoveTests : BunitContext
         Services.AddSingleton<Taskify.Security.Users.IUserDirectory>(new FakeUserDirectory());
         Services.AddSingleton<Taskify.Security.Audit.IAuditLogger>(audit);
         Services.AddSingleton<Web.Services.CurrentUserService>();
+        Services.AddFakeRealtime();
 
         return Render<BoardPage>(parameters => parameters.Add(p => p.ProjectId, ProjectId));
     }

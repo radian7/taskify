@@ -114,6 +114,24 @@
         }
     }
 
+    /// <summary>Re-fetches the comments (after a realtime signal). A draft being typed or edited is kept.</summary>
+    /// <returns>A task that completes when the thread is redrawn.</returns>
+    public async Task RefreshAsync()
+    {
+        var result = await TasksApi.GetCommentsAsync(TaskId);
+        if (result.IsSuccess)
+        {
+            comments = result.Value!;
+            error = null;
+        }
+        else
+        {
+            error = result.Error;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     private Task AddAsync() => RunAsync(async () =>
     {
         var result = await TasksApi.AddCommentAsync(TaskId, newText);

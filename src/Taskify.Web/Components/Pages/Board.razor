@@ -3,6 +3,9 @@
 @inject ProjectsClient ProjectsApi
 @inject TasksClient TasksApi
 @inject CurrentUserService CurrentUser
+@inject IRealtimeBoard Realtime
+@inject TimeProvider Time
+@implements IDisposable
 
 <PageTitle>@(project?.Name ?? "Board") - Taskify</PageTitle>
 
@@ -67,6 +70,9 @@ else
     private Guid? draggedTaskId;
     private bool adding;
     private bool notFound;
+    private CoalescingRefresher? refresher;
+    private IDisposable? subscription;
+    private Guid subscribedProject;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -76,7 +82,34 @@ else
             return; // the layout sends the browser back to the selection screen
         }
 
+        Subscribe();
         await LoadAsync();
+    }
+
+    // Board changes and resyncs make the board re-fetch its tasks from the API; message content is never rendered (research R5).
+    private void Subscribe()
+    {
+        if (subscription is not null && subscribedProject == ProjectId)
+        {
+            return;
+        }
+
+        subscription?.Dispose();
+        refresher ??= new CoalescingRefresher(RefreshAsync, Time);
+        subscribedProject = ProjectId;
+        subscription = Realtime.SubscribeProject(ProjectId, refresher.Signal);
+    }
+
+    private Task RefreshAsync() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        subscription?.Dispose();
+        refresher?.Dispose();
     }
 
     private async Task LoadAsync()

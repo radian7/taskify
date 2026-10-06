@@ -22,6 +22,10 @@ public static class WebClientSetup
         // The Web app validates the selected-user cookie against the same directory the APIs use (research R4).
         services.AddRemoteUserDirectory();
 
+        // One hub connection for the whole server, shared by every circuit (research R5).
+        services.AddSingleton<RealtimeBoardService>();
+        services.AddSingleton<IRealtimeBoard>(provider => provider.GetRequiredService<RealtimeBoardService>());
+
         services.AddSingleton<SelectedUserCookie>();
         services.AddScoped<CircuitIdentity>();
         services.AddScoped<CurrentUserService>();

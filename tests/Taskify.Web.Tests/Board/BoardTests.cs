@@ -34,6 +34,7 @@ public sealed class BoardTests : BunitContext
         Services.AddSingleton<Taskify.Security.Users.IUserDirectory>(new FakeUserDirectory());
         Services.AddSingleton<Taskify.Security.Audit.IAuditLogger>(audit);
         Services.AddSingleton<CurrentUserService>();
+        Services.AddFakeRealtime();
 
         return Render<BoardPage>(parameters => parameters.Add(p => p.ProjectId, ProjectId));
     }
@@ -134,6 +135,7 @@ public sealed class BoardTests : BunitContext
         Services.AddSingleton<Taskify.Security.Users.IUserDirectory>(new FakeUserDirectory());
         Services.AddSingleton<Taskify.Security.Audit.IAuditLogger>(audit);
         Services.AddSingleton<CurrentUserService>();
+        Services.AddFakeRealtime();
 
         var cut = Render<BoardPage>(parameters => parameters.Add(p => p.ProjectId, Guid.NewGuid()));
 

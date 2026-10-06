@@ -3,6 +3,9 @@
 @using Taskify.Security.Validation
 @inject ProjectsClient ProjectsApi
 @inject CurrentUserService CurrentUser
+@inject IRealtimeBoard Realtime
+@inject TimeProvider Time
+@implements IDisposable
 
 <PageTitle>Projects - Taskify</PageTitle>
 
@@ -50,6 +53,8 @@ else
     private List<ProjectDto>? projects;
     private ApiError? error;
     private bool creating;
+    private CoalescingRefresher? refresher;
+    private IDisposable? subscription;
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,10 +64,31 @@ else
             return; // the layout sends the browser back to the selection screen
         }
 
+        // A signal only says "something changed"; the list is always re-fetched from the API (research R5).
+        refresher = new CoalescingRefresher(RefreshAsync, Time);
+        subscription = Realtime.SubscribeProjectList(refresher.Signal);
+        await LoadAsync();
+    }
+
+    private Task RefreshAsync() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        subscription?.Dispose();
+        refresher?.Dispose();
+    }
+
+    private async Task LoadAsync()
+    {
         var result = await ProjectsApi.ListProjectsAsync();
         if (result.IsSuccess)
         {
             projects = result.Value;
+            error = null;
         }
         else
         {

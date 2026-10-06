@@ -34,6 +34,7 @@ public sealed class FormTests : BunitContext
         Services.AddSingleton<Taskify.Security.Users.IUserDirectory>(new FakeUserDirectory());
         Services.AddSingleton<Taskify.Security.Audit.IAuditLogger>(new RecordingAuditLogger());
         Services.AddSingleton<Web.Services.CurrentUserService>();
+        Services.AddFakeRealtime();
     }
 
     private static TaskDetailDto Detail(string title, TaskStatus status = TaskStatus.ToDo, Guid? assignee = null, string? description = null) =>

@@ -506,20 +506,20 @@ refresh.
   - after the commit, calls `RealtimeBroadcaster`, then returns `202`;
   - audits rejections.
   (depends on T116–T118, T121)
-- [ ] T123 [US5] Create `RealtimeBoardService` (singleton) in `src/Taskify.Web/Services/RealtimeBoardService.cs`:
+- [X] T123 [US5] Create `RealtimeBoardService` (singleton) in `src/Taskify.Web/Services/RealtimeBoardService.cs`:
   - keeps one `HubConnection` to `https://notifications-api/hubs/board` with the Web API key header and automatic reconnect;
   - reference-counts group membership across circuits (`SubscribeProject`, `SubscribeTask`, `SubscribeUser` return `IDisposable`);
   - raises C# events per group;
   - on reconnect, rejoins all groups and raises a `Resync` event (FR-026);
   - ignores `eventId`s it has already handled (bounded LRU of 1,000).
-- [ ] T124 [US5] Create `CoalescingRefresher` in `src/Taskify.Web/Services/CoalescingRefresher.cs`. It runs at most one re-fetch per second per open screen: signals inside the window are merged into a single trailing re-fetch, which keeps viewers inside the 300 reads per minute limit (research R5)
-- [ ] T125 [US5] Subscribe the pages to real-time signals, with every update re-fetched from the REST API rather than taken from the message contents. Each page uses `CoalescingRefresher` and `InvokeAsync(StateHasChanged)`, and disposes its subscriptions when the component is disposed:
+- [X] T124 [US5] Create `CoalescingRefresher` in `src/Taskify.Web/Services/CoalescingRefresher.cs`. It runs at most one re-fetch per second per open screen: signals inside the window are merged into a single trailing re-fetch, which keeps viewers inside the 300 reads per minute limit (research R5)
+- [X] T125 [US5] Subscribe the pages to real-time signals, with every update re-fetched from the REST API rather than taken from the message contents. Each page uses `CoalescingRefresher` and `InvokeAsync(StateHasChanged)`, and disposes its subscriptions when the component is disposed:
   - `src/Taskify.Web/Components/Pages/Board.razor` subscribes to `project:{id}` and re-fetches tasks on `BoardChanged` or `Resync`;
   - `src/Taskify.Web/Components/Pages/TaskDetails.razor` subscribes to `task:{id}` and re-fetches the task, history and comments on `TaskChanged` or `Resync`;
   - `src/Taskify.Web/Components/Pages/Projects.razor` re-fetches the project list on `ProjectListChanged` or `Resync`.
   Every open screen handles `Resync`, because signals sent while the hub connection was down are lost and only a re-fetch brings the screen up to date (FR-026, research R5).
   (depends on T123, T124)
-- [ ] T126 [P] [US5] bUnit and unit tests in `tests/Taskify.Web.Tests/Realtime/RealtimeTests.cs`, using a fake `RealtimeBoardService` and a fake time provider:
+- [X] T126 [P] [US5] bUnit and unit tests in `tests/Taskify.Web.Tests/Realtime/RealtimeTests.cs`, using a fake `RealtimeBoardService` and a fake time provider:
   - when a `BoardChanged` signal arrives, the board re-fetches and re-renders;
   - 10 signals within 1 second cause at most 2 re-fetches;
   - `Resync` causes a re-fetch on each of `Board`, `TaskDetails` and `Projects`;

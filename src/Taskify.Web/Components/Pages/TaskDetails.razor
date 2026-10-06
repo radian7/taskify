@@ -3,6 +3,9 @@
 @inject ProjectsClient ProjectsApi
 @inject TasksClient TasksApi
 @inject CurrentUserService CurrentUser
+@inject IRealtimeBoard Realtime
+@inject TimeProvider Time
+@implements IDisposable
 
 <PageTitle>@(task?.Title ?? "Task") - Taskify</PageTitle>
 
@@ -54,7 +57,7 @@ else
             <p class="task-description">@task.Description</p>
         }
 
-        <CommentThread TaskId="TaskId" CurrentUserId="CurrentUser.Current!.Id" Users="users" />
+        <CommentThread @ref="comments" TaskId="TaskId" CurrentUserId="CurrentUser.Current!.Id" Users="users" />
 
         <StatusHistory Items="history" Users="users" />
     }
@@ -75,6 +78,10 @@ else
     private ApiError? error;
     private bool notFound;
     private bool editing;
+    private CommentThread? comments;
+    private CoalescingRefresher? refresher;
+    private IDisposable? subscription;
+    private Guid subscribedTask;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -84,6 +91,43 @@ else
             return; // the layout sends the browser back to the selection screen
         }
 
+        Subscribe();
+        await LoadAsync();
+    }
+
+    // Task changes and resyncs re-fetch the task, its history and its comments from the API (research R5).
+    private void Subscribe()
+    {
+        if (subscription is not null && subscribedTask == TaskId)
+        {
+            return;
+        }
+
+        subscription?.Dispose();
+        refresher ??= new CoalescingRefresher(RefreshAsync, Time);
+        subscribedTask = TaskId;
+        subscription = Realtime.SubscribeTask(TaskId, refresher.Signal);
+    }
+
+    private Task RefreshAsync() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        if (comments is not null)
+        {
+            await comments.RefreshAsync();
+        }
+
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        subscription?.Dispose();
+        refresher?.Dispose();
+    }
+
+    private async Task LoadAsync()
+    {
         error = null;
         notFound = false;
 
