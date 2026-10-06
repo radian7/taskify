@@ -1,5 +1,8 @@
 using FluentValidation;
 using Taskify.Notifications.Api.Data;
+using Taskify.Notifications.Api.Endpoints;
+using Taskify.Notifications.Api.Hubs;
+using Taskify.Notifications.Api.Validation;
 using Taskify.Security;
 using Taskify.Security.ApiKeys;
 using Taskify.Security.Data;
@@ -20,6 +23,9 @@ builder.Services.AddRemoteUserDirectory();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddOpenApi();
 builder.Services.AddSignalR();
+builder.Services.AddScoped<EventEnvelopeValidator>();
+builder.Services.AddScoped<HubArgumentValidator>();
+builder.Services.AddSingleton<RealtimeBroadcaster>();
 
 var app = builder.Build();
 
@@ -38,6 +44,10 @@ app.UseTaskifySecurity();
 
 app.MapDefaultEndpoints();
 app.MapOpenApi().RequireCallers(Callers.Web).AllowAnonymousActingUser();
+
+// Only the Web server may open a hub connection (R8); the connection has no acting user.
+app.MapHub<BoardHub>("/hubs/board").RequireCallers(Callers.Web).AllowAnonymousActingUser();
+app.MapInternalEventEndpoints();
 
 app.Run();
 

@@ -234,7 +234,8 @@ public class EventsContractTests(TaskifyAppFixture app)
         try
         {
             await app.App.ResourceCommands.ExecuteCommandAsync("notifications-api", KnownResourceCommands.StopCommand, cancellation);
-            await app.App.ResourceNotifications.WaitForResourceAsync("notifications-api", KnownResourceStates.Exited, cancellation)
+            // Aspire reports a stopped project resource as Finished (not Exited), so accept either.
+            await app.App.ResourceNotifications.WaitForResourceAsync("notifications-api", [KnownResourceStates.Exited, KnownResourceStates.Finished], cancellation)
                 .WaitAsync(TimeSpan.FromSeconds(60), cancellation);
 
             // The write succeeds: the event waits in the Tasks API outbox (FR-026).
