@@ -524,7 +524,7 @@ refresh.
   - 10 signals within 1 second cause at most 2 re-fetches;
   - `Resync` causes a re-fetch on each of `Board`, `TaskDetails` and `Projects`;
   - the subscription is disposed when the component is disposed.
-- [ ] T152 [US5] Update the docs for US5 (Principle IV, same change as the code):
+- [X] T152 [US5] Update the docs for US5 (Principle IV, same change as the code):
   - `src/Taskify.Notifications.Api/README.md`: `/internal/events` (accepted callers, the caller policy per event type, envelope and payload validation, de-duplication, the `internal-events` rate limit), the `BoardHub` contract with its groups and argument validation, and the Web-key-only connection rule;
   - `src/Taskify.Web/README.md`: `RealtimeBoardService`, group reference counting, `Resync` after reconnect (FR-026), `CoalescingRefresher` and the read budget;
   - `src/Taskify.Projects.Api/README.md` and `src/Taskify.Tasks.Api/README.md`: where their outbox events are delivered and what happens while the Notifications API is down;

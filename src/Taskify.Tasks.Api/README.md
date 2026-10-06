@@ -62,6 +62,10 @@ Integration classes share one seeded user and the 60 writes/min limit, so a `429
 ## Emitted events
 
 `TaskCreated`, `TaskUpdated`, `TaskAssigned`, `TaskMoved`, `CommentAdded`, `CommentEdited`, `CommentDeleted`, written to
-the outbox and dispatched to the Notifications API ([ADR 0002](../../docs/adr/0002-outbox-http-dispatch.md)).
+the outbox and dispatched to `POST /internal/events` on the Notifications API ([ADR 0002](../../docs/adr/0002-outbox-http-dispatch.md)),
+which accepts all seven from this service and turns them into `BoardChanged` and `TaskChanged` signals for the open
+boards and task pages ([ADR 0008](../../docs/adr/0008-realtime-signals-and-refetch.md)). If the Notifications API is
+down, writes still succeed (the outbox row commits with the change), delivery is retried and open screens re-fetch
+after the Web app reconnects (FR-026).
 Payloads carry IDs and status values and never the task description or comment text. Logs and audit entries never
 contain titles, descriptions or comment text either.

@@ -60,4 +60,7 @@ PostgreSQL only. It calls no other service; the Tasks and Notifications APIs and
 
 `ProjectCreated` (`ProjectId`, `Name`) is written to the transactional outbox in the same transaction as the project
 and dispatched over HTTPS to the Notifications API `/internal/events` by the outbox dispatcher
-([ADR 0002](../../docs/adr/0002-outbox-http-dispatch.md)). The receiving intake arrives with US5.
+([ADR 0002](../../docs/adr/0002-outbox-http-dispatch.md)). The Notifications API accepts it at `POST /internal/events` (Projects may send only this type) and signals
+`ProjectListChanged` to every connected Web server, so other users' project lists update live. If the Notifications API
+is down, the project is still saved, the outbox row stays pending and is retried until accepted; a `400` or `403` is
+dead-lettered instead. Open lists catch up on the next resync (FR-026).

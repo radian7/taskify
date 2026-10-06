@@ -68,6 +68,26 @@ User text (names, titles, descriptions, comments) is always rendered through Raz
 CI (`.github/workflows/ci.yml`, step "Ban MarkupString in the Web app") greps `src/Taskify.Web` and fails on any use
 unless the line carries a `markup-allowed:` comment.
 
+## Real-time updates (US5, [ADR 0008](../../docs/adr/0008-realtime-signals-and-refetch.md))
+
+- **`IRealtimeBoard` / `RealtimeBoardService`**: one SignalR connection from the Web server to the Notifications API hub,
+  shared by all circuits and opened by the first subscription. The hub address comes from the configuration key
+  `services:notifications-api:https:0` (SignalR WebSockets bypass `HttpClient` service discovery), falls back to
+  `https://notifications-api/hubs/board`, and must be HTTPS or the service refuses to start (R16). The connection sends
+  the Web key (`ApiKeys__OwnKey`), the only key the hub accepts. The first start is retried every 5 seconds; later drops
+  use automatic reconnect.
+- **Group reference counting**: `SubscribeProject`, `SubscribeTask`, `SubscribeUser` and `SubscribeProjectList` return an
+  `IDisposable`. The hub group is joined by the first subscriber and left by the last, so two circuits on one board use
+  one membership.
+- **Resync after reconnect (FR-026)**: groups are lost on reconnect and signals sent meanwhile are gone, so the service
+  rejoins every group and calls every subscriber, which makes each screen re-fetch.
+- **De-duplication**: a bounded LRU set of recent `(signal kind, eventId)` pairs drops repeated signals.
+- **`CoalescingRefresher`**: per open screen, the first signal re-fetches at once and signals inside a 1-second window
+  merge into one trailing re-fetch. A board therefore costs at most about 60 re-fetches a minute, inside the viewer's
+  300 reads/min budget (FR-031). A failed re-fetch is reported and does not take the circuit down.
+- **Pages** (`Board`, `Projects`) re-fetch over REST on a signal. Signals carry IDs only and nothing is rendered from
+  them. Log messages contain connection state only.
+
 ## Run and test
 
 ```powershell
