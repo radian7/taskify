@@ -14,7 +14,8 @@ namespace Taskify.TestSupport;
 /// run, with throwaway secrets (research R11). Tests talk to the APIs over HTTPS exactly as the Web app does.
 /// </summary>
 /// <remarks>
-/// Needs a container runtime. With Podman, set <c>ASPIRE_CONTAINER_RUNTIME=podman</c>.
+/// Needs a container runtime: a <c>docker</c> CLI on PATH (for example pointed at Docker Engine in WSL), or Podman
+/// with <c>ASPIRE_CONTAINER_RUNTIME=podman</c>.
 /// </remarks>
 public class TaskifyAppFixture : IAsyncLifetime
 {

@@ -42,8 +42,10 @@ output, which is very long.
 - The build treats warnings as errors. A missing XML doc comment on a public member (CS1591)
   fails it.
 - The test runner is Microsoft.Testing.Platform with xUnit v3 (`dotnet test --project <dir>`).
-- Integration and E2E tests need a container runtime. On this machine that is Podman, not Docker;
-  `verify.ps1` sets `ASPIRE_CONTAINER_RUNTIME=podman` and starts the Podman machine. A whole
+- Integration and E2E tests need a container runtime. On this machine that is Docker Engine in WSL,
+  reached by the Windows `docker.exe` through the `wsl` context (`tcp://localhost:2375`, setup in
+  `readme.md`); `verify.ps1` starts the WSL distribution when the daemon does not respond. Podman is
+  only a fallback when `docker` is not on PATH. A whole
   integration run takes minutes, so filter by class while you work.
 - In the dev container (`.devcontainer/`, `TASKIFY_DEVCONTAINER=true`) the runtime is Docker-in-Docker
   and the build output goes to `.artifacts/` instead of each project's `bin/` and `obj/`

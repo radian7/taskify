@@ -29,7 +29,7 @@ OpenAPI, which are exempt (`AllowAnonymousActingUser`), because the Web app need
 ```
 
 Run the whole system through `src/Taskify.AppHost` (it starts PostgreSQL and every service over HTTPS).
-Integration tests need Podman (see the root `CLAUDE.md`). Other test classes for this API:
+Integration tests need a container runtime, Docker in WSL or Podman (see the root `readme.md`). Other test classes for this API:
 `grep -rl Project tests/`.
 
 ## Configuration

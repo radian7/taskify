@@ -7,8 +7,10 @@
     console (and out of an agent's context window). On failure it prints the distinct compiler
     errors, or the names of the failing tests with the first lines of each failure message.
 
-    Integration and E2E tests start the Aspire AppHost, which needs a container runtime. When
-    Docker is not on PATH but Podman is, the script selects Podman and starts its machine.
+    Integration and E2E tests start the Aspire AppHost, which needs a container runtime. Docker is
+    preferred: when its daemon (for example Docker Engine in WSL) does not respond, the script starts
+    the default WSL distribution. When Docker is not on PATH but Podman is, the script selects
+    Podman and starts its machine.
 
 .EXAMPLE
     ./scripts/verify.ps1                         # build + unit + web (bUnit) tests
@@ -82,6 +84,24 @@ if (($Tests -contains 'integration') -or ($Tests -contains 'e2e')) {
     elseif (-not $docker) {
         Write-Output 'CONTAINERS: neither Docker nor Podman found; integration/E2E tests cannot run.'
         exit 1
+    }
+    else {
+        # The Windows docker CLI may point at Docker Engine in WSL, which is unreachable while the
+        # distribution is stopped. Starting the default distribution starts dockerd through systemd.
+        & docker info *> $null
+        if ($LASTEXITCODE -ne 0 -and (Get-Command wsl -ErrorAction SilentlyContinue)) {
+            Write-Output 'CONTAINERS: Docker not responding; starting the default WSL distribution...'
+            & wsl -e true *> $null
+            foreach ($attempt in 1..10) {
+                & docker info *> $null
+                if ($LASTEXITCODE -eq 0) { break }
+                Start-Sleep -Seconds 2
+            }
+        }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Output 'CONTAINERS: Docker is on PATH but its daemon does not respond (docker info failed).'
+            exit 1
+        }
     }
 }
 

@@ -12,9 +12,33 @@ zwięzły opis projektu dla agentów AI w [CLAUDE.md](CLAUDE.md).
 ./scripts/verify.ps1 -Tests all                        # to samo, co uruchamia CI
 ```
 
-Testy integracyjne i E2E uruchamiają AppHost, więc potrzebują środowiska kontenerów (Docker albo
-Podman). Gdy Dockera nie ma w PATH, `verify.ps1` sam ustawia `ASPIRE_CONTAINER_RUNTIME=podman` i
-uruchamia maszynę Podmana.
+Testy integracyjne i E2E uruchamiają AppHost, więc potrzebują środowiska kontenerów. AppHost
+startuje w nim tylko PostgreSQL (nazwany wolumen `taskify-postgres-data`). Zalecany jest Docker
+Engine w WSL. Docker Desktop nie jest potrzebny:
+
+1. W WSL demon nasłuchuje dodatkowo na TCP, tylko na loopbacku:
+
+   ```bash
+   sudo mkdir -p /etc/systemd/system/docker.service.d
+   sudo tee /etc/systemd/system/docker.service.d/override.conf > /dev/null <<'EOF'
+   [Service]
+   ExecStart=
+   ExecStart=/usr/bin/dockerd -H fd:// -H tcp://127.0.0.1:2375 --containerd=/run/containerd/containerd.sock
+   EOF
+   sudo systemctl daemon-reload && sudo systemctl restart docker
+   ```
+
+2. Na Windowsie wystarczy sam klient `docker.exe` (archiwum z
+   <https://download.docker.com/win/static/stable/x86_64/>) w PATH oraz kontekst:
+
+   ```powershell
+   docker context create wsl --docker "host=tcp://localhost:2375"
+   docker context use wsl
+   ```
+
+Port 2375 nie ma TLS. Każdy lokalny proces może sterować Dockerem, ale z sieci jest niedostępny.
+Gdy demon nie odpowiada, `verify.ps1` uruchamia domyślną dystrybucję WSL. Gdy Dockera nie ma w
+PATH, a jest Podman, skrypt ustawia `ASPIRE_CONTAINER_RUNTIME=podman` i uruchamia maszynę Podmana.
 
 ## Dev container
 
@@ -34,7 +58,7 @@ Kod, output buildów i stack trace'y gromadziły się w jednej sesji. Ukończona
 
 | Plik | Rola |
 | --- | --- |
-| [scripts/verify.ps1](scripts/verify.ps1) | Build i testy z bardzo krótkim outputem: tylko podsumowanie oraz nazwy padających testów z 1–3 liniami błędu. Wymusza angielski output, żeby wzorce działały mimo polskiej lokalizacji. Sam uruchamia Podmana. |
+| [scripts/verify.ps1](scripts/verify.ps1) | Build i testy z bardzo krótkim outputem: tylko podsumowanie oraz nazwy padających testów z 1–3 liniami błędu. Wymusza angielski output, żeby wzorce działały mimo polskiej lokalizacji. Sam budzi Dockera w WSL albo uruchamia Podmana. |
 | [CLAUDE.md](CLAUDE.md) | Brief ładowany do każdej sesji i każdego subagenta: układ projektów, komendy, twarde reguły, znane problemy. Agent nie musi czytać w całości spec/plan/research (ok. 1000 linii). |
 | [.claude/agents/speckit-worker.md](.claude/agents/speckit-worker.md) | Worker (model Sonnet). Czyta z `tasks.md` tylko swoje taski, dokańcza istniejące pliki zamiast pisać je od nowa i weryfikuje zmiany przez `verify.ps1`. Nie commituje i nie odhacza tasków. Zwraca raport do ok. 25 linii. |
 | [.claude/skills/speckit-implement-orchestrated/SKILL.md](.claude/skills/speckit-implement-orchestrated/SKILL.md) | Orkiestrator. Grupuje taski w jednostki po 3–8 i wysyła je do workerów, a potem **sam ponownie uruchamia testy**. Odhacza `[X]` i commituje po każdej jednostce, która przeszła. Równolegle puszcza tylko jednostki `[P]`, które nie dotykają wspólnych plików. |
