@@ -16,6 +16,13 @@
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
+  <!-- Dev container (.devcontainer): build into .artifacts/ so the Linux build never touches the Windows bin/ and
+       obj/ of a checkout shared with the host. -->
+  <PropertyGroup Condition="'$(TASKIFY_DEVCONTAINER)' == 'true'">
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory).artifacts</ArtifactsPath>
+  </PropertyGroup>
+
   <!-- Test projects are not public API surface, so they do not need XML docs. -->
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

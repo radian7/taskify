@@ -16,6 +16,14 @@ Testy integracyjne i E2E uruchamiają AppHost, więc potrzebują środowiska kon
 Podman). Gdy Dockera nie ma w PATH, `verify.ps1` sam ustawia `ASPIRE_CONTAINER_RUNTIME=podman` i
 uruchamia maszynę Podmana.
 
+## Dev container
+
+Repozytorium ma konfigurację [dev containera](https://containers.dev) dla VS Code
+([.devcontainer/](.devcontainer/)). W kontenerze są SDK .NET 10, PowerShell, Docker-in-Docker dla
+Aspire i Chromium dla testów E2E, a `verify.ps1` i AppHost działają w nim bez zmian. Wystarczy
+**Dev Containers: Reopen in Container**. Konfigurację hosta (Docker w WSL albo Podman), certyfikat
+HTTPS i wolumeny opisuje [docs/devcontainer.md](docs/devcontainer.md).
+
 ## Implementacja z agentami AI: orchestrator → worker
 
 Pierwsze przejście `/speckit-implement` przepełniło okno kontekstu i wyczerpało limit tokenów.

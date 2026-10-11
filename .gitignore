@@ -26,3 +26,6 @@ Thumbs.db
 # Playwright
 playwright-report/
 test-results/
+
+# Dev container build output (Directory.Build.props, TASKIFY_DEVCONTAINER)
+.artifacts/

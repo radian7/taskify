@@ -25,7 +25,7 @@
 param([switch]$Force)
 
 $ErrorActionPreference = 'Stop'
-$project = Join-Path $PSScriptRoot '..\src\Taskify.AppHost'
+$project = Join-Path $PSScriptRoot '../src/Taskify.AppHost'
 
 function New-RandomHex([int]$Bytes = 32) {
     $buffer = New-Object byte[] $Bytes

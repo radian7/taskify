@@ -45,6 +45,9 @@ output, which is very long.
 - Integration and E2E tests need a container runtime. On this machine that is Podman, not Docker;
   `verify.ps1` sets `ASPIRE_CONTAINER_RUNTIME=podman` and starts the Podman machine. A whole
   integration run takes minutes, so filter by class while you work.
+- In the dev container (`.devcontainer/`, `TASKIFY_DEVCONTAINER=true`) the runtime is Docker-in-Docker
+  and the build output goes to `.artifacts/` instead of each project's `bin/` and `obj/`
+  (`docs/devcontainer.md`).
 - If you call `dotnet` directly anyway, use `-v q --nologo -clp:ErrorsOnly` and pipe the output
   through a filter. Never dump a full test log into the conversation.
 
