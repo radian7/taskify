@@ -8,16 +8,16 @@ Chromium for the E2E tests. `scripts/verify.ps1`, the AppHost and every test pro
 
 | Piece | Why |
 |---|---|
-| `mcr.microsoft.com/devcontainers/dotnet:2-10.0-noble` | .NET 10 SDK (`global.json` rolls forward within 10.0) |
+| `mcr.microsoft.com/devcontainers/base:noble` + .NET feature `10.0.101` | Exactly the SDK in `global.json`. A newer 10.0 feature band would win the roll-forward and bring analyzer rules that fail the `-warnaserror` build (for example CA1873 in 10.0.4xx). When `global.json` changes, change `devcontainer.json` with it. |
 | Docker-in-Docker feature | Aspire starts PostgreSQL as a container, and the services reach it on `localhost`. With the host's Docker socket the published port would sit on the host, out of the services' reach. |
 | PowerShell feature, `pwsh` as the default terminal | `scripts/verify.ps1`, `scripts/init-dev-secrets.ps1` |
-| Python and Node features | `.github/scripts/check-openapi-drift.sh`, `npx @asyncapi/cli` |
+| Node feature, `python3-yaml` from apt | `npx @asyncapi/cli`, `.github/scripts/check-openapi-drift.sh` |
 | `TASKIFY_DEVCONTAINER=true` | `Directory.Build.props` switches to [artifacts output](https://learn.microsoft.com/dotnet/core/sdk/artifacts-output) in `.artifacts/`. The Linux build never touches the Windows `bin/` and `obj/` of a checkout that is shared with the host. |
 | `SSL_CERT_DIR` | The services call each other over HTTPS (ADR 0004). On Linux `dotnet dev-certs https --trust` trusts the development certificate for OpenSSL only through this folder. |
 | `TASKIFY_E2E_BROWSER=chromium` | The E2E tests drive Playwright's Chromium, because Google Chrome is not installed in the container |
 | Volumes | User secrets, the NuGet cache and `.artifacts/` survive a rebuild (see [Volumes](#volumes)) |
 
-`.devcontainer/post-create.sh` runs once after the container is created: `dotnet tool restore`, the HTTPS
+`.devcontainer/post-create.sh` runs once after the container is created: Python with PyYAML from apt, `dotnet tool restore`, the HTTPS
 development certificate, `scripts/init-dev-secrets.ps1`, a full build and `playwright.ps1 install --with-deps chromium`.
 The first start takes several minutes.
 

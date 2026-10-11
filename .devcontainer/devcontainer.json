@@ -2,17 +2,21 @@
 // docs/devcontainer.md.
 {
   "name": "Taskify (.NET 10 + Aspire)",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:2-10.0-noble",
+  "image": "mcr.microsoft.com/devcontainers/base:noble",
 
   "features": {
+    // Exactly the SDK from global.json. "rollForward: latestFeature" would pick any newer 10.0 feature band
+    // installed next to it, and a newer SDK brings new analyzer rules that fail the -warnaserror build (CA1873
+    // with 10.0.4xx). Keep this in step with global.json.
+    "ghcr.io/devcontainers/features/dotnet:2": { "version": "10.0.101" },
     // Aspire starts PostgreSQL as a container. It has to run inside this container (Docker-in-Docker), because
     // the services reach it on localhost. With the host's Docker socket the published port would sit on the
     // host and the services could not reach it.
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     // scripts/verify.ps1 and scripts/init-dev-secrets.ps1.
     "ghcr.io/devcontainers/features/powershell:1": {},
-    // Python for .github/scripts/check-openapi-drift.sh, Node for the AsyncAPI check (npx @asyncapi/cli).
-    "ghcr.io/devcontainers/features/python:1": {},
+    // Node for the AsyncAPI check (npx @asyncapi/cli). Python for check-openapi-drift.sh comes from apt
+    // (post-create.sh), with PyYAML, because Ubuntu's Python refuses "pip install" (PEP 668).
     "ghcr.io/devcontainers/features/node:1": { "version": "22" }
   },
 

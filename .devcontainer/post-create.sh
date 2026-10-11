@@ -3,8 +3,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Docker creates named volumes owned by root; the build and user secrets run as "vscode".
-sudo chown "$(id -u):$(id -g)" "$HOME/.microsoft/usersecrets" "$HOME/.nuget/packages" .artifacts
+# Docker creates named volumes, and the missing parent folders of their mount points, owned by root; the build
+# and user secrets run as "vscode".
+sudo chown "$(id -u):$(id -g)" "$HOME/.microsoft" "$HOME/.microsoft/usersecrets" "$HOME/.nuget" "$HOME/.nuget/packages" .artifacts
+
+# .github/scripts/check-openapi-drift.sh needs Python with PyYAML.
+echo '==> python3-yaml'
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3 python3-yaml > /dev/null
 
 echo '==> dotnet tool restore'
 dotnet tool restore
